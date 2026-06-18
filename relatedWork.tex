@@ -1,24 +1,33 @@
 \section{Related Work}
 \label{sec:relatedwork}
 
-\textbf{Fine-tuned Text-to-SQL Models.}
-Early neural Text-to-SQL research mainly formulated the task as supervised semantic parsing over benchmark datasets such as \textsc{Spider}~\cite{yu2018spider}. 
-A major line of work improves model architecture and decoding constraints through explicit schema encoding, relation-aware linking, grammar- or parser-guided decoding, and structure-aware pretraining. 
-Representative systems include \textsc{RAT-SQL}~\cite{wang2019rat}, which models relations among question tokens and schema elements; \textsc{PICARD}~\cite{scholak2021picard}, which constrains autoregressive decoding through incremental parsing; and \textsc{RESDSQL}~\cite{li2023resdsql} and \textsc{Graphix-T5}~\cite{li2023graphix}, which further improve schema linking, skeleton parsing, and graph-aware representation learning.  
-Reinforcement-learning-based methods such as \textsc{Reasoning-SQL} and \textsc{Arctic-Text2SQL-R1} further train models with SQL-tailored rewards or execution-based feedback to improve reasoning and executability~\cite{pourreza2025reasoningsql,yao2025arctictext2sql}. 
-These methods substantially advanced cross-domain Text-to-SQL, but their effectiveness often depends on task-specific training data, synthetic data quality, and benchmark distributions.
+\textbf{Fine-tuned and Trained Text-to-SQL Models.}
+A dominant line of recent work focuses on adapting or training LLMs for Text-to-SQL via supervised fine-tuning, synthetic data construction, or reinforcement learning~\cite{sun2023sqlpalm,li2024codes,pourreza2024dtssql,chen2024opensql,thorpe2024dubo,ma2025sqlr1,liu2025xiyansql,li2025omnisql}.
+For example, \textsc{XiYan-SQL}~\cite{liu2025xiyansql} uses multi-task fine-tuning and a multi-generator ensemble to produce diverse SQL candidates, while \textsc{OmniSQL}~\cite{li2025omnisql} improves model training through large-scale synthesized Text-to-SQL data.
+Reinforcement-learning-based methods such as \textsc{Reasoning-SQL}~\cite{pourreza2025reasoningsql} and \textsc{Arctic-Text2SQL-R1}~\cite{yao2025arctictext2sql} further train models with SQL-tailored rewards or execution-based feedback to improve reasoning and executability.
+Despite their strong performance on benchmarks, these methods remain heavily dependent on training data quality and coverage.
+They often exhibit limited generalization in out-of-domain scenarios and may suffer from reduced robustness when facing complex or real-world database environments~\cite{li2026deepeye}.
+%These methods substantially advance Text-to-SQL by improving the underlying generation model, but their effectiveness still depends on the availability and coverage of training data, the quality of synthesized examples or reward signals, and the benchmark distributions used for training and evaluation.
 
 \textbf{LLM Prompting and Retrieval-augmented Generation.}
-With the emergence of general-purpose LLMs, Text-to-SQL research has increasingly shifted from model fine-tuning to prompting-based generation. 
-Prompting methods avoid task-specific parameter updates and instead rely on schema serialization, demonstrations, reasoning instructions, and execution feedback. 
-Benchmark studies show that LLMs can serve as strong Text-to-SQL generators when equipped with carefully designed prompts and database context~\cite{gao2023text,li2023can}. 
-\textsc{DIN-SQL}~\cite{pourreza2023din} decomposes Text-to-SQL into subproblems and uses self-correction to improve generation quality, while \textsc{SQL-PaLM}~\cite{sun2023sql} investigates LLM adaptation and prompting strategies for Text-to-SQL. 
-Other approaches improve grounding through retrieval and context construction, such as retrieval-augmented generation~\cite{lewis2020retrieval} and \textsc{CHESS}~\cite{talaei2024chess}, which performs contextual harnessing, schema pruning, and candidate selection for efficient SQL synthesis. 
-These methods reduce the need for task-specific fine-tuning, but they still commonly organize generation around predefined stages such as context construction, candidate generation, validation, and selection.
+Another line of work leverages general-purpose LLMs for Text-to-SQL through prompting and retrieval-augmented generation, performing task adaptation at inference time without parameter updates.
+These methods formulate SQL generation as an in-context reasoning problem, where the model is guided by schema serialization, database content, demonstrations and decomposition instructions.
+Early benchmark and adaptation studies show that LLMs can become strong Text-to-SQL generators when prompts provide sufficient database context and carefully selected examples~\cite{gao2023text,li2023can,sun2023sql}.
+Subsequent prompting methods improve robustness through task decomposition, self-correction, dynamic few-shot selection, and consistency alignment~\cite{pourreza2023din,xie2025opensearchsql,ramachandran2024textsqlcalibration}.
+Retrieval-augmented approaches further strengthen grounding by retrieving relevant demonstrations, linking schema elements at scale, pruning database context, and selecting among multiple candidates~\cite{lewis2020retrieval,talaei2024chess,pourreza2024chasesql,wang2025linkalign,maamari2024death}.
+Despite these advances, prompting and retrieval-based methods still depend heavily on manually designed inference procedures and the quality of retrieved evidence.
+Their reasoning depth is usually determined before generation, which limits their ability to adapt the workflow according to schema scale, intermediate uncertainty, or execution behavior~\cite{li2026deepeye,talaei2024chess}.
 
 \textbf{Agentic Text-to-SQL workflows.}
 Recent work further extends LLM prompting into agentic workflows, where LLMs call tools, inspect database context, execute SQL, observe feedback, and revise intermediate outputs. 
 General agent frameworks such as \textsc{ReAct}~\cite{yao2023react}, \textsc{Self-Refine}~\cite{madaan2023selfrefine}, and \textsc{Reflexion}~\cite{shinn2023reflexion} demonstrate the value of combining reasoning, acting, and iterative self-improvement. 
-In Text-to-SQL, systems such as MAC-SQL, CHASE-SQL, ReFoRCE, SQL-of-Thought, AGENTIQL, and MARS-SQL decompose the task into modules for schema grounding, candidate generation, self-refinement, voting or consensus, and execution-based validation~\cite{wang2023mac,pourreza2024chasesql,deng2025reforce,chaturvedi2025sqlthought,heidari2025agentiql,yang2025marssql}. 
-However, most existing agents still instantiate a largely fixed workflow: similar modules are invoked for most questions, and database feedback is primarily used for post-generation repair or selection. 
-In contrast, \toolname\ targets efficiency-oriented Text-to-SQL by introducing a meta-cognitive controller that adapts the workflow to question difficulty, database evidence, execution behavior, and optimization progress.
+Following this paradigm, Text-to-SQL agents organize generation around modules such as schema exploration, candidate generation, execution-based repair, multi-path reasoning, semantic memory, and agentic view construction~\cite{wang2023mac,pourreza2024chasesql,deng2025reforce,chaturvedi2025sqlthought,heidari2025agentiql,yang2025marssql,pham2026avsql,biswal2026agentsm}.
+These systems are more robust than single-shot prompting because they can query the database, compare alternatives, and use observed failures to revise SQL.
+Nevertheless, most existing agents still instantiate a largely fixed workflow: similar modules are invoked for most questions, and database feedback is mainly used for post-generation repair, validation, or candidate selection rather than for continuous process control.
+
+\textbf{Difference from \toolname.}
+Existing prompting-based and agentic Text-to-SQL methods mainly focus on improving correctness through better grounding, decomposition, and post-hoc refinement.
+In contrast, \toolname\ is designed as an efficiency- and process-aware framework that goes beyond static or fixed workflows.
+%
+It introduces a meta-cognitive controller that enables (i) environment-aware workflow adaptation, (ii) process-level self-reflection during generation, and (iii) execution- and plan-aware optimization guided by database feedback.
+As a result, \toolname\ treats Text-to-SQL as a dynamic interaction process where both reasoning strategy and optimization behavior are continuously adjusted according to the database environment and intermediate execution signals, rather than following a predefined pipeline or relying only on post-generation correction.

@@ -1,4 +1,4 @@
-\section{Design Objective}
+\section{Motivation}
 \label{sec:preliminaries}
 
 \subsection{Task Formulation}
@@ -29,3 +29,34 @@ where $\mathcal{Q}_{\mathrm{corr}}(x,\mathcal{D})$ denotes the subset of candida
 $\text{Cost}(q, \mathcal{S})$ represents the estimated or actual execution cost of query $q$ on $\mathcal{S}$.
 Intuitively, the model should not only ensure that $q_{\text{opt}}$ yields correct results but also that it achieves minimal execution time or resource consumption under the same semantic constraints. 
 
+\subsection{Design Objective}
+Existing Text-to-SQL systems are typically designed as static pipelines that decompose query generation into pre-defined stages, including schema linking, candidate generation, and post-hoc execution validation.
+While such designs improve robustness compared to single-pass generation, they lack the ability to dynamically adapt their reasoning process to different database environments, query difficulties, and intermediate execution feedback.
+
+\textbf{Beyond Static Pipelines: A Meta-Cognitive Multi-Agent Perspective.}
+Inspired by enactive cognition and meta-cognitive theory, we reformulate Text-to-SQL as a dynamic interaction process between an intelligent system and the database environment.
+Enactive cognition emphasizes that intelligence emerges through continuous interaction with the environment, while meta-cognition enables the system to monitor, regulate, and adapt its own reasoning process.
+Based on these principles, we propose a Meta-Cognitive Multi-Agent Text-to-SQL System, where a central Meta-Cognitive Controller dynamically orchestrates a set of specialized agents (actions) under different execution contexts.
+Instead of a fixed pipeline, all stages in Text-to-SQL are decomposed into reusable and composable actions, which are invoked online based on the current state of the problem and environment feedback.
+This design establishes a unified closed-loop system in which a Meta-Cognitive Controller coordinates planning, execution, evaluation, and optimization over SQL programs based on continuous database feedback.
+
+
+\textbf{Key Design Principles.}
+\textbf{(1) Environment-aware Workflow Adaptation via Strategy Selection.}
+The Meta-Cognitive Controller explicitly assesses both the database environment and the complexity of the input query to determine the appropriate reasoning strategy.
+For example, for simple queries over well-structured schemas (e.g., single-table filtering), the controller may directly invoke a lightweight generation path using few-shot prompting.
+In contrast, for complex analytical queries (e.g., multi-join or domain-specific reasoning), the controller activates a deeper workflow that includes multi-candidate generation, iterative refinement, and optimization loops.
+This adaptive strategy selection avoids over- or under-utilization of reasoning resources.
+
+\textbf{(2) Process-level Self-Reflection and Dynamic Control.}
+Unlike conventional post-hoc validation approaches, our system enables continuous monitoring of intermediate reasoning states during SQL generation.
+The Meta-Cognitive Controller observes signals such as schema linking ambiguity, candidate disagreement across generated SQLs, and convergence behavior in optimization loops.
+For instance, if multiple candidate SQLs consistently disagree on join paths, the controller may trigger re-linking of schema entities or restart generation with alternative evidence.
+Similarly, if repeated optimization iterations fail to reduce execution cost, the controller may terminate the current loop and switch to a different reasoning configuration.
+This enables closed-loop control over the entire reasoning trajectory.
+
+\textbf{(3) Execution- and Plan-aware Optimization via Feedback-driven Rewriting.}
+The system treats execution results, query plans, and cost estimations as fundamental feedback signals that continuously shape its optimization behavior.
+When execution traces reveal inefficiencies such as full table scans, suboptimal join orders, or redundant computation paths, the system  invokes an optimization agent that reasons over both the current execution feedback and previously observed optimization experiences to produce improved SQL variants.
+Crucially, optimization is not performed in isolation for each query. Instead, the system continuously accumulates experience from execution outcomes and rewriting actions, forming an evolving Auto-Evaluation Knowledge Base (AEKB). This knowledge base stores historical rewrite cases, execution feedback, and observed performance patterns, enabling the agent to generalize from past optimization experiences to new queries.
+In this way, query optimization is transformed from a rule-based or purely local rewriting process into an experience-driven learning loop, where execution feedback serves as the foundation for progressively improving future reasoning and optimization decisions.

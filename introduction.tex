@@ -69,10 +69,9 @@ Inspired by enactive cognition and meta-cognition, we view Text-to-SQL not as a 
 Enactive cognition suggests that understanding is shaped through interaction with the environment, while meta-cognition emphasizes the ability to monitor and regulate one's own reasoning process.
 In the context of Text-to-SQL, this means that an agent should perceive database-specific signals, act by generating and rewriting SQL, observe feedback from execution and query plans, and adjust its strategy when uncertainty, failure, or inefficiency is detected.
 These perspectives lead to three design objectives.
-First, to address \textbf{L1}, the agent should perform \emph{environment-aware strategy selection}: it should select lightweight or deep workflows according to the perceived database environment, question difficulty, and intermediate feedback, rather than applying the same strategy uniformly.
-Second, to address \textbf{L2}, the agent should support \emph{process-level self-reflection}: it should monitor schema-linking reliability, candidate disagreement, repair convergence, and strategy suitability during generation, so that early mistakes can be corrected before they propagate.
-Third, to address \textbf{L3}, the agent should enable \emph{plan-aware SQL optimization}: it should use execution plans, cost signals, semantic validation, and reusable rewrite knowledge to improve query efficiency while preserving correctness.
-
+First, to address \textbf{L1}, the agent should perform \emph{environment-aware workflow adaptation via strategy selection}: it should select lightweight or deep workflows according to the perceived database environment, question complexity, and intermediate feedback, rather than applying the same strategy uniformly.
+Second, to address \textbf{L2}, the agent should support \emph{process-level self-reflection and dynamic control}: it should monitor schema-linking reliability, candidate disagreement, repair convergence, and strategy suitability during generation, so that early mistakes can be corrected before they propagate.
+Third, to address \textbf{L3}, the agent should enable \emph{execution- and plan-aware SQL optimization}: it should use query plans, cost signals, semantic validation, and reusable rewrite knowledge to improve query efficiency while preserving correctness.
 
 % 第七段 approach
 
