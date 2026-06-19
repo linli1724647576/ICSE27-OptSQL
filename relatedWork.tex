@@ -18,7 +18,7 @@ Retrieval-augmented approaches further strengthen grounding by retrieving releva
 Despite these advances, prompting and retrieval-based methods still depend heavily on manually designed inference procedures and the quality of retrieved evidence.
 Their reasoning depth is usually determined before generation, which limits their ability to adapt the workflow according to schema scale, intermediate uncertainty, or execution behavior~\cite{li2026deepeye,talaei2024chess}.
 
-\textbf{Agentic Text-to-SQL workflows.}
+\textbf{Agentic Text-to-SQL Workflows.}
 Recent work further extends LLM prompting into agentic workflows, where LLMs call tools, inspect database context, execute SQL, observe feedback, and revise intermediate outputs. 
 General agent frameworks such as \textsc{ReAct}~\cite{yao2023react}, \textsc{Self-Refine}~\cite{madaan2023selfrefine}, and \textsc{Reflexion}~\cite{shinn2023reflexion} demonstrate the value of combining reasoning, acting, and iterative self-improvement. 
 Following this paradigm, Text-to-SQL agents organize generation around modules such as schema exploration, candidate generation, execution-based repair, multi-path reasoning, semantic memory, and agentic view construction~\cite{wang2023mac,pourreza2024chasesql,deng2025reforce,chaturvedi2025sqlthought,heidari2025agentiql,yang2025marssql,pham2026avsql,biswal2026agentsm}.
