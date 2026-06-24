@@ -3,7 +3,7 @@
 
 % 第一段 ： Text-to-SQL 的背景
 Text-to-SQL aims to translate natural language (NL) questions into executable SQL queries, enabling non-expert users to retrieve and analyze relational data without manually writing database programs~\cite{androutsopoulos1995natural,hendrix1978developing,popescu2003towards}. 
-Its importance has grown with increasingly large schemas, rich database contents, and diverse analytical tasks, motivating benchmarks such as \textsc{Spider}~\cite{yu2018spider}, \textsc{BIRD}~\cite{li2023can}. 
+%Its importance has grown with increasingly large schemas, rich database contents, and diverse analytical tasks, motivating benchmarks such as \textsc{Spider}~\cite{yu2018spider}, \textsc{BIRD}~\cite{li2023can}. 
 Recent LLM-based systems have achieved substantial progress through in-context learning, task decomposition and specialized agents, moving the field beyond single-shot generation toward workflow-based SQL construction~\cite{gao2023text,pourreza2023din,wang2023mac,talaei2024chess}.
 
 
@@ -38,10 +38,10 @@ Despite these advances, existing Text-to-SQL systems still face three coupled li
 %They provide limited support for jointly adapting the overall workflow, generation strategy, reflection behavior, and optimization effort according to the database environment, question difficulty, intermediate feedback, and execution efficiency.
 % 我觉得需要讨论一下了
 \textbf{L1: Limited Adaptation in Workflows and Strategy Selection.}
-Many existing Text-to-SQL agents often predefine both the workflow structure and the strategy choices, where modules such as schema linking, few-shot retrieval, question decomposition, candidate generation, validation, and revision are applied in a largely fixed manner~\cite{gao2023text,pourreza2023din,wang2023mac,chaturvedi2025sqlthought,pham2026avsql}.
-Although such designs improve robustness over single-shot generation, they provide limited support for adapting reasoning strategies to the current database environment, question difficulty, or intermediate feedback.
-This can misallocate reasoning effort: simple queries over intuitive schemas may incur unnecessary token and latency overhead, while difficult queries may require deeper grounding, candidate comparison, or additional validation and reflection.
-This mismatch is illustrated by the different effects of domain-specific hints in \textsc{BIRD}~\cite{li2023can}.
+Many existing Text-to-SQL agents often predefine both the workflow structure and the strategy choices, where modules such as schema linking, few-shot retrieval, candidate generation, validation, and revision are applied in a largely fixed manner~\cite{gao2023text,pourreza2023din,wang2023mac,chaturvedi2025sqlthought,pham2026avsql}.
+Although such designs improve robustness over single-shot generation, they offer limited support for adapting reasoning strategies to the database environment, question difficulty, or intermediate feedback.
+This may misallocate reasoning effort: simple queries over intuitive schemas can incur unnecessary token and latency overhead, whereas difficult queries may require deeper grounding, candidate comparison, and additional validation or reflection.
+This mismatch is illustrated by the different effects of domain-specific hints in \textsc{BIRD}~\cite{li2023can} dataset.
 For an intuitive database such as \texttt{superhero}, where tables and columns are relatively descriptive, adding domain hints provides little additional benefit in our experiments.
 In contrast, for a domain-heavy database such as \texttt{thrombosis\_prediction}, where terms such as \texttt{LDH} and gender-dependent uric-acid ranges require medical knowledge, the same hints improve accuracy from 20\% to nearly 50\%.
 This contrast suggests that Text-to-SQL agents should adapt their grounding and generation strategies to the database environment, rather than applying the same strategy uniformly.
@@ -55,12 +55,11 @@ As a result, early mistakes in schema linking, value grounding, or query plannin
 Moreover, without global process supervision, local repair actions may fix surface-level execution errors while leaving the overall reasoning trajectory insufficiently grounded in the user question and database context.
 
 \textbf{L3: Limited Awareness of Query Efficiency.}
-Most existing Text-to-SQL systems are primarily optimized for correctness: they aim to generate SQL queries whose execution results match the ground-truth answers~\cite{li2023resdsql,li2024codes,li2023graphix,rai2023improving,scholak2021picard,wang2019rat,gao2023text,pourreza2023din}.
+Most existing Text-to-SQL systems are primarily optimized for correctness: they aim to generate SQL queries whose execution results match the ground-truth answers~\cite{li2023resdsql,li2024codes,li2023graphix,rai2023improving,scholak2021picard,wang2019rat}.
 However, in practical database applications, a semantically correct SQL query is not necessarily efficient.
-Equivalent or near-equivalent SQL formulations may lead to very different execution costs due to redundant projections, unnecessary joins, correlated subqueries, missing filter pushdown, suboptimal join orders, or functions applied to indexed columns~\cite{chaudhuri1998overview,leis2015good,wang2022wetune}.
-Although database systems have long relied on rule-based, cost-based, and learned rewriting to improve query efficiency~\cite{selinger1979access,wang2022wetune,zhou2023learned,li2024llm}, current Text-to-SQL agents usually use database feedback mainly to check executability or result consistency.
-They rarely treat execution plans, estimated costs, or bottleneck patterns as signals for deciding whether and how to rewrite the generated SQL.
-As a result, the final query may be correct but unnecessarily expensive, especially in enterprise settings with large schemas, large tables, and long multi-step analytical workflows~\cite{lei2024spider}.
+Equivalent SQL formulations may lead to very different execution costs due to variations in join orders, predicate placement, or aggregation strategies~\cite{chaudhuri1998overview,leis2015good,wang2022wetune}.
+Yet, current Text-to-SQL systems mainly focus on executability and result consistency, rarely treating query plans, estimated costs, or bottleneck patterns as signals for rewriting generated SQL.
+As a result, the final query may be correct but unnecessarily expensive, especially in enterprise settings with large schemas, large tables, and long multi-step analytical workflows~\cite{lin2026cracking,lei2024spider}.
 
 
 % 第六段  key insights
@@ -69,11 +68,17 @@ Inspired by enactive cognition and meta-cognition, we view Text-to-SQL not as a 
 Enactive cognition suggests that understanding is shaped through interaction with the environment, while meta-cognition emphasizes the ability to monitor and regulate one's own reasoning process.
 In the context of Text-to-SQL, this means that an agent should perceive database-specific signals, act by generating and rewriting SQL, observe feedback from execution and query plans, and adjust its strategy when uncertainty, failure, or inefficiency is detected.
 These perspectives lead to three design objectives.
-First, to address \textbf{L1}, the agent should perform \emph{environment-aware workflow adaptation via strategy selection}: it should select lightweight or deep workflows according to the perceived database environment, question complexity, and intermediate feedback, rather than applying the same strategy uniformly.
+First, to address \textbf{L1}, the agent should perform \emph{environment-aware dynamic workflow adaptation}: it should select lightweight or deep workflows according to the perceived database environment, question complexity, and intermediate feedback, rather than applying the same strategy uniformly.
 Second, to address \textbf{L2}, the agent should support \emph{process-level self-reflection and dynamic control}: it should monitor schema-linking reliability, candidate disagreement, repair convergence, and strategy suitability during generation, so that early mistakes can be corrected before they propagate.
 Third, to address \textbf{L3}, the agent should enable \emph{execution- and plan-aware SQL optimization}: it should use query plans, cost signals, semantic validation, and reusable rewrite knowledge to improve query efficiency while preserving correctness.
 
 % 第七段 approach
+\textbf{Approach.} 
+To realize these objectives, we propose \toolname, a meta-cognitive multi-agent system for efficiency-oriented Text-to-SQL.
+At the core of \toolname\ is a Meta-Cognitive Controller that maintains a task-level state in working memory, observes intermediate feedback, and dynamically decides which agent actions should be invoked next.
+Under its control, the Generation Phase constructs executable and semantically plausible initial SQL candidates through evidence-guided schema filtering and multi-strategy SQL generation.
+When further efficiency improvement is needed, the Optimization Loop analyzes query plans, identifies bottleneck patterns, rewrites inefficient SQL formulations, and validates both semantic consistency and cost reduction.
+Finally, a Memory Engine and Tool Infrastructure support database grounding, execution analysis, retrieval of reusable optimization experience, and updates to the long-term Auto-Evaluation Knowledge Base (AEKB) after successful rewrites.
 
 % 第八段 evaluation
 

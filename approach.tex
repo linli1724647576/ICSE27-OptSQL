@@ -10,7 +10,7 @@ The Meta-Cognitive Controller supervises the entire workflow.
 It perceives the database environment, estimates the difficulty of the input question, selects suitable actions, and monitors intermediate feedback throughout both generation and optimization.
 Under its control, \toolname\ first constructs an initial SQL query in the Generation Phase, where an evidence-guided schema filter identifies relevant tables, columns, values, and join paths, and an initial SQL builder produces executable candidate queries.
 If the controller detects that the query requires further efficiency improvement, it activates the Optimization Loop.
-This loop consists of an Explain Analyzer Agent, a SQL Rewriter Agent, and a Validator Agent, which together analyze execution plans, rewrite inefficient SQL patterns, and verify semantic consistency and cost reduction.
+This loop consists of an Explain Analyzer Agent, a SQL Rewriter Agent, and a Validator Agent, which together analyze query plans, rewrite inefficient SQL patterns, and verify semantic consistency and cost reduction.
 %
 \toolname\ is further supported by a Memory Engine and a Tool Infrastructure.
 The Memory Engine maintains task-level working memory and reusable optimization knowledge, including expert rules and validated historical rewrite cases.
@@ -19,12 +19,12 @@ Through these components, \toolname\ continuously observes feedback from the dat
 
 \begin{figure*}[t]
 	\centering
-	%	\vspace{-3mm}
-	\includegraphics[width=1\linewidth]{./images/overview.pdf} 
-	\vspace{-5mm}
+	\vspace{-3mm}
+	\includegraphics[width=0.95\linewidth]{./images/overview.pdf} 
+	\vspace{-2mm}
 	\caption{\textbf{Overview of \toolname}}
 	\label{fig:overview}
-	\vspace{-4mm}
+	\vspace{-6mm}
 \end{figure*}
 
 The remainder of this section describes each component of \toolname.
@@ -35,7 +35,7 @@ Finally, we describe the Memory Engine and Tool Infrastructure that support retr
 \subsection{Generation Phase}
 \label{subsec: Generation Phase}
 The Generation Phase aims to construct a set of executable and semantically plausible initial SQL candidates based on the question and database environment.
-It focuses on two core capabilities: evidence construction and multi-strategy SQL generation, without global control or optimization decisions.
+It focuses on two core capabilities: evidence construction and multi-strategy SQL generation.
 
 \textbf{Evidence-guided Schema Filter Agent.}
 This agent is responsible for grounding the input question into a compact, relevant, and executable schema context for downstream SQL generation.
@@ -120,7 +120,7 @@ This agent is responsible for diagnosing potential inefficiencies in the current
 Given an initial SQL query, it first obtains the query plan from the database and normalizes raw plan operators into stable bottleneck signals.
 These plan-level signals are then combined with lightweight SQL-structure analysis and schema statistics, such as table size, available indexes, and nullable columns, to decide whether the observed behavior is likely to be a real bottleneck.
 The agent then maps each bottleneck signal to one or more candidate rewrite directions.
-For instance, consider a query such as \texttt{SELECT order\_id, customer\_id, order\_date FROM orders WHERE status = 'shipped' ORDER BY order\_date LIMIT 10}.
+For instance, consider a query such as ``\texttt{SELECT order\_id, customer\_id, order\_date FROM orders WHERE status = 'shipped' ORDER BY order\_date LIMIT 10}''.
 If the query plan contains both \texttt{SCAN orders} and \texttt{USE TEMP B-TREE FOR ORDER BY}, the agent derives two signals: \texttt{full\_table\_scan} and \texttt{temp\_sort}.
 When \texttt{orders} is a large table, the full scan indicates a potentially expensive access path and may trigger access-path-aware suggestions, while the temporary sort may suggest aligning the \texttt{ORDER BY}/\texttt{LIMIT} pattern with available ordering or indexes.
 The output of the agent is therefore a set of suggestions, such as \textit{missing filter pushdown} or \textit{inefficient ordering}, rather than a rewritten SQL query.
@@ -130,14 +130,31 @@ Each pattern describes a possible inefficiency, a candidate rewrite direction, a
 These suggestions are not directly applied as deterministic rules.
 Instead, they serve as evidence for the SQL Rewriter Agent, which decides how to rewrite the query under semantic-preservation constraints.
 
+
+%Table I 具体解释：
+%Redundant projection：主要处理 SELECT * 或输出不必要列的问题。它可以减少数据传输、物化和排序/聚合时的中间结果宽度。但只有当所需输出列能从 NL question 或 SQL 语义中确定时才能改。
+%Scalar MAX/MIN subquery：例如把某些 MAX(x) / MIN(x) 查询改成 ORDER BY x DESC/ASC LIMIT 1。这种 rewrite 在有索引时可能更快，但要注意 NULL、tie 和返回列语义。
+%Correlated subquery：把逐行执行的相关子查询改成 JOIN 或 CTE，可能减少重复计算。但要特别注意 duplicate、NULL、EXISTS/IN、聚合和 cardinality 变化。
+%Missing filter pushdown：把选择性过滤条件尽量提前到 base table 或 CTE 内部，减少后续 join/aggregation 的输入规模。但不能跨越会改变语义的 outer join、aggregation、window function 或 volatile expression。
+%Late aggregation：在 join 之前先聚合，减少 join 输入规模。这个很有用，但必须保证 grouping key、join multiplicity 和 aggregate semantics 不变。
+%Inefficient OR predicate：将复杂 OR 谓词改成 UNION / UNION ALL。这个可能让每个分支利用索引，但要处理重复行和 predicate overlap。
+%Redundant join path：删除不必要的 join 或 bridge table。但要保证这个 join 没有隐式过滤、去重或改变行数。
+%Function on indexed column：例如把 DATE(timestamp_col) = '2024-01-01' 改成 range predicate，使索引可用。要保证函数等价转换成立。
+%Inefficient ordering：处理不必要排序、排序表达式阻碍索引、ORDER BY 与 LIMIT 搭配低效等问题。
+
 \begin{table*}[t]
 	\centering
+	\vspace{-2mm}
 	\caption{\textbf{Optimization patterns used by the Explain Analyzer Agent.}}
+	\vspace{-2mm}
 	\label{tab:explain-analyzer}
-	\small
-	\begin{tabular}{p{0.21\linewidth}p{0.34\linewidth}p{0.35\linewidth}}
+%	\small
+%	\scriptsize
+	\fontsize{6.4pt}{6.8pt}\selectfont
+	\renewcommand{\arraystretch}{0.92}
+	\begin{tabular}{p{0.14\linewidth}p{0.31\linewidth}p{0.45\linewidth}}
 		\toprule
-		Pattern & Rewrite Direction & Applicability Condition \\
+		\textbf{Pattern} & \textbf{Rewrite Direction} & \textbf{Applicability Condition} \\
 		\midrule
 		Redundant projection
 		& Replace \texttt{SELECT *} with necessary projected columns.
@@ -176,6 +193,7 @@ Instead, they serve as evidence for the SQL Rewriter Agent, which decides how to
 		& Applied when ordering semantics are unchanged. \\
 		\bottomrule
 	\end{tabular}
+	\vspace{-5mm}
 \end{table*}
 
 \textbf{SQL Rewriter Agent.}
@@ -191,7 +209,7 @@ The rewriter does not freely optimize the query; instead, it is constrained to a
 The Validator Agent determines whether a rewritten SQL query should be accepted.
 It performs two checks.
 First, it checks semantic consistency between the original SQL and the rewritten SQL, ensuring that the rewrite does not change the intended query result.
-Second, it evaluates whether the rewritten SQL improves execution efficiency using available database feedback, such as estimated optimizer cost and execution latency.
+Second, it evaluates whether the rewritten SQL improves execution efficiency using available database feedback including estimated optimizer cost and execution latency.
 %
 If the rewritten SQL fails the semantic-consistency check, it is rejected and returned to the Meta-Cognitive Controller for reflection.
 The controller may then ask the SQL Rewriter Agent to retry with the original SQL, the failed rewrite, and the validation feedback.
@@ -205,26 +223,38 @@ The Meta-Cognitive Controller is the central coordination module of \toolname.
 It maintains a global task state, selects which agent capabilities should be invoked, monitors intermediate feedback, and decides whether the system should continue, switch strategy, or terminate.
 In this sense, the controller provides process-level regulation over the whole Text-to-SQL workflow.
 
-\textbf{Perception and State Construction.}
-The controller maintains a structured task state that is initialized before generation and updated after each agent action.
-The initial state contains three types of information.
-First, from the input question, the controller extracts task features, including the number of conditions, aggregation requirements, comparison or superlative expressions, nested reasoning, and domain-specific terms.
-Second, from the database environment, it records schema size, candidate table space, join-path complexity, database scale, available statistics, and index information.
-Third, from the Memory Engine, it checks whether similar SQL templates, rewrite cases and expert rules can be retrieved.
+The task state is initialized from the input question and database environment, and is further enriched with relevant knowledge retrieved from the AEKB, which serves as long-term memory for reusable optimization experience.
+During execution, this task-level state is maintained in working memory and updated after each agent action using structured reports from the Generation Phase and the Optimization Loop.
+Based on the updated working-memory snapshot, the controller identifies high-level control signals, such as whether the current evidence is sufficient, whether candidate SQLs are stable, whether additional generation strategies are needed, whether the query should be optimized, whether a rewrite is semantically risky, and whether the current optimization loop is converging.
+These signals provide the basis for workflow adaptation and process-level self-reflection, guiding the controller to continue, retry, switch strategy, or terminate the current reasoning process.
 
-During execution, the controller updates the task state using reports from different agents.
-The Evidence-guided Schema Filter Agent reports selected tables and columns, grounded values, ambiguous column/value alternatives, join-path evidence, and evidence reliability.
-%Value-related perception is obtained from the agent's value-grounding capabilities, such as exact value verification, semantic value matching, distinct-value inspection, data sampling, and null/type analysis.
-The Initial SQL Builder Agent reports generated candidates, repair results, execution errors, execution-result clusters, and candidate confidence.
-The Optimization Loop reports detected bottlenecks, optimization hints, retrieved rewrite cases, rewritten SQLs, semantic validation results, and cost changes.
+%每完成一个 agent action
+%→ agent 产生 report
+%→ report 被写入 Working Memory
+%→ Controller 读取当前 Working Memory snapshot
+%→ Controller 通过 prompt-based reasoning 归纳 control signals
+%→ Controller 决定下一步 action
+
+%\textbf{Perception and State Construction.}
+%The controller maintains a structured task state that is initialized before generation and updated after each agent action.
+%The initial state contains three types of information.
+%First, from the input question, the controller extracts task features, including the number of conditions, aggregation requirements, comparison or superlative expressions, nested reasoning, and domain-specific terms.
+%Second, from the database environment, it records schema size, candidate table space, join-path complexity, database scale, available statistics, and index information.
+%Third, from the Memory Engine, it checks whether similar SQL templates, rewrite cases and expert rules can be retrieved.
 %
-Based on these observations, the controller derives several control signals: whether the current evidence is sufficient, whether candidate SQLs are stable, whether additional generation strategies are needed, whether the query should be optimized, whether a rewrite is semantically risky, and whether the current loop is converging.
-These signals are used for workflow adaptation and self-reflection.
+%During execution, the controller updates the task state using reports from different agents.
+%The Evidence-guided Schema Filter Agent reports selected tables and columns, grounded values, ambiguous column/value alternatives, join-path evidence, and evidence reliability.
+%%Value-related perception is obtained from the agent's value-grounding capabilities, such as exact value verification, semantic value matching, distinct-value inspection, data sampling, and null/type analysis.
+%The Initial SQL Builder Agent reports generated candidates, repair results, execution errors, execution-result clusters, and candidate confidence.
+%The Optimization Loop reports detected bottlenecks, optimization hints, retrieved rewrite cases, rewritten SQLs, semantic validation results, and cost changes.
+%%
+%Based on these observations, the controller derives several control signals: whether the current evidence is sufficient, whether candidate SQLs are stable, whether additional generation strategies are needed, whether the query should be optimized, whether a rewrite is semantically risky, and whether the current loop is converging.
+%These signals are used for workflow adaptation and self-reflection.
 
 \textbf{Workflow and Strategy Adaptation.}
 The controller dynamically selects a workflow according to the current task state.
-For simple questions over clear schemas, it chooses a lightweight workflow that activates only basic evidence construction and a single SQL generation strategy.
-For ambiguous or complex questions, the controller activates stronger agent capabilities.
+%For example, simple questions over clear schemas, it chooses a lightweight workflow that activates only basic evidence construction and a single SQL generation strategy.
+%For ambiguous or complex questions, the controller activates stronger agent capabilities.
 Its adaptation operates at three levels:
 
 \begin{itemize}[leftmargin=10pt]
@@ -251,7 +281,7 @@ This adaptive design avoids applying the same expensive workflow to every questi
 \textbf{Process-level Self-Reflection.}
 The controller performs self-reflection when intermediate feedback suggests that the current reasoning path is unreliable, uncertain, or no longer improving.
 Rather than waiting until the final SQL is produced, it monitors evidence quality, candidate stability, execution behavior, semantic validation results, and optimization progress throughout the workflow.
-When problems are detected, the controller can revise the current plan by requesting additional evidence construction, activating alternative generation strategies, invoking repair, retrieving more relevant optimization cases, or switching to another rewrite direction.
+When potential problems are detected, the controller can revise the current plan by requesting additional evidence construction, activating alternative generation strategies, invoking repair, retrieving more relevant optimization cases, or switching to another rewrite direction.
 During optimization, self-reflection is mainly driven by the Validator Agent's feedback.
 If a rewritten SQL violates semantic consistency, the controller rejects the rewrite and asks the SQL Rewriter Agent to revise it.
 If the rewritten SQL preserves semantics but fails to reduce cost, the controller retries with rewrite history, retrieved cases, and optimization suggestions, or switches to another rewrite direction.
@@ -272,25 +302,31 @@ The controller also terminates the optimization loop when the retry budget is ex
 \textbf{Memory Engine.}
 The Memory Engine supports both task-level reasoning and cross-task experience reuse.
 It consists of working memory and the Auto-Evaluation Knowledge Base (AEKB).
-The working memory stores the intermediate trace of the current task.
-It records selected strategies, schema and value evidence, generated SQL candidates, execution errors, repair attempts, optimization hints, retrieved cases, rewritten SQLs, validation results, and cost changes.
-The Meta-Cognitive Controller uses this memory to avoid repeating failed actions and to provide context for subsequent reflection, retry, and termination decisions.
+%The working memory stores the intermediate trace of the current task.
+%It records the database environment, question complexity, selected strategies, schema and value evidence, generated SQL candidates, execution errors, repair attempts, optimization hints, retrieved cases, rewritten SQLs, validation results, and cost changes.  \lin{Recheck}
+The working memory stores the structured task state and intermediate trace of the current task.
+It records task context, including the database environment, question complexity, and available statistics or indexes.
+It also stores grounding evidence, including selected tables and columns, grounded values, ambiguous schema or value alternatives, join-path evidence, and evidence reliability.
+During SQL generation, it records selected generation strategies, generated SQL candidates, execution errors, repair attempts, execution-result clusters, candidate confidence, and the selected initial SQL.
+During optimization, it records query plans, normalized bottleneck signals, optimization hints, rewrite directions, applicability conditions, retrieved cases, rewritten SQLs, semantic validation results, estimated costs, execution latency, and cost changes.
+The Meta-Cognitive Controller uses this memory to avoid repeated failed actions and provide context for subsequent reflection, retry, and termination decisions.
 Failed rewrites are kept only in working memory as task-level negative feedback, rather than being promoted to reusable knowledge.
-
+%
 The AEKB stores reusable optimization knowledge.
-It contains expert rules and successful historical rewrite cases that have been validated by the Validator Agent.
-A rewrite is added to the AEKB only when it satisfies two conditions: the rewritten SQL is semantically consistent with the original SQL, and it improves execution cost.
+It contains expert rules and historical rewrite cases validated by the Validator Agent.
+A rewrite is added to the AEKB only when it satisfies two conditions: the rewritten SQL is semantically consistent with the original SQL, and it reduces execution cost.
 Each accepted case is summarized as a rewrite template record:
 \[
-\langle T_{\mathit{src}}, T_{\mathit{dst}}, C, D \rangle .
+\langle T_{\mathit{src}}, T_{\mathit{dst}}, C, R \rangle .
 \]
-Here, \(T_{\mathit{src}}\) denotes the source SQL template, \(T_{\mathit{dst}}\) denotes the rewritten SQL template, \(C\) specifies the applicability constraints, and \(D\) describes the optimization rationale.
+Here, ($T_{\mathit{src}}$) denotes the source SQL template, ($T_{\mathit{dst}}$) denotes the rewritten SQL template, ($C$) specifies the applicability constraints, and ($R$) describes the optimization rationale.
 %
 To retrieve relevant cases, the RAG Engine first normalizes the current SQL into a template.
 It parses the SQL into an AST, replaces table names with \texttt{TABLE}, replaces column names with coarse semantic tokens such as \texttt{TEXT\_COLUMN}, \texttt{NUMERIC\_COLUMN}, \texttt{DATE\_COLUMN}, \texttt{ID\_COLUMN}, and \texttt{FK\_COLUMN}, replaces literals with \texttt{LITERAL}, and normalizes whitespace and case.
-The normalized template is then compared with the \texttt{srcSQL} templates in the AEKB using a hybrid similarity score that combines sequence similarity and token-set overlap.
-The top-ranked records are returned as candidate rewrite knowledge for the Explain Analyzer Agent and SQL Rewriter Agent.
+The normalized template is then compared with the ($T_{\mathit{src}}$) templates in the AEKB using a hybrid similarity score that combines sequence similarity and token-set overlap.
+The top-ranked records are returned as candidate rewrite knowledge for the SQL Rewriter Agent.
 Through this mechanism, \toolname\ accumulates validated optimization experience and reuses it to guide future bottleneck analysis and rewrite selection.
+
 
 
 \textbf{Tool Infrastructure.}
@@ -306,17 +342,16 @@ It consists of three groups of tools:
 	\item \textit{SQL Execution and Analysis Engine.}
 	This engine supports execution-aware optimization for the Optimization Loop.
 	It includes a query plan analyzer, a SQL quality analyzer, a semantic consistency checker, and a cost evaluator.
-	The execution plan analyzer normalizes raw execution plans into plan-level risk signals, while the SQL quality analyzer detects static SQL risks from the parsed AST.
-	The semantic consistency checker compares the original and rewritten SQLs on the available database state, and the cost evaluator measures estimated optimizer cost, execution latency before and after rewriting.
+	The query plan analyzer normalizes raw query plans into plan-level risk signals, while the SQL quality analyzer detects static SQL risks from the parsed AST.
+	The semantic consistency checker compares the original and rewritten SQLs on the available database state, and the cost evaluator measures estimated optimizer cost and execution latency before and after rewriting.
 	
 	\item \textit{RAG Engine.}
 	This engine supports memory retrieval and update.
 	It provides a SQL formatter for template normalization, a retriever for selecting relevant rewrite cases, and an updater for inserting validated optimization cases into the AEKB.
-	These tools allow the Explain Analyzer Agent and SQL Rewriter Agent to reuse prior optimization experience and update the knowledge base after successful rewrites.
+	These tools allow the SQL Rewriter Agent to reuse prior optimization experience and update the knowledge base after successful rewrites.
 \end{itemize}
 
-Together, these tools allow \toolname\ to ground reasoning in database evidence, analyze execution behavior, retrieve prior optimization experience, and update memory after successful rewrites.
-
+Together, these tools allow \toolname\ to ground reasoning in concrete database evidence, analyze execution behavior, retrieve relevant optimization experience, and update memory after successful rewrites.
 
 \section{Case Study}
 \label{sec:case study}
