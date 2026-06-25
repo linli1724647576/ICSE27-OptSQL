@@ -9,21 +9,18 @@ Despite their strong performance on benchmarks, these methods remain heavily dep
 They often exhibit limited generalization in out-of-domain scenarios and may suffer from reduced robustness when facing complex or real-world database environments~\cite{li2026deepeye}.
 %These methods substantially advance Text-to-SQL by improving the underlying generation model, but their effectiveness still depends on the availability and coverage of training data, the quality of synthesized examples or reward signals, and the benchmark distributions used for training and evaluation.
 
-\textbf{LLM Prompting and Retrieval-augmented Generation.}
-Another line of work leverages general-purpose LLMs for Text-to-SQL through prompting and retrieval-augmented generation, performing task adaptation at inference time without parameter updates.
-These methods formulate SQL generation as an in-context reasoning problem, where the model is guided by schema serialization, database content, demonstrations and decomposition instructions.
-Early benchmark and adaptation studies show that LLMs can become strong Text-to-SQL generators when prompts provide sufficient database context and carefully selected examples~\cite{gao2023text,li2023can,sun2023sql}.
-Subsequent prompting methods improve robustness through task decomposition, self-correction, dynamic few-shot selection, and consistency alignment~\cite{pourreza2023din,xie2025opensearchsql,ramachandran2024textsqlcalibration}.
-Retrieval-augmented approaches further strengthen grounding by retrieving relevant demonstrations, linking schema elements at scale, pruning database context, and selecting among multiple candidates~\cite{lewis2020retrieval,talaei2024chess,pourreza2024chasesql,wang2025linkalign,maamari2024death}.
-Despite these advances, prompting and retrieval-based methods still depend heavily on manually designed inference procedures and the quality of retrieved evidence.
-Their reasoning depth is usually determined before generation, which limits their ability to adapt the workflow according to schema scale, intermediate uncertainty, or execution behavior~\cite{li2026deepeye,talaei2024chess}.
+\textbf{Prompting-based Text-to-SQL Methods.}
+A major line of work adapts general-purpose LLMs to Text-to-SQL through carefully designed prompting strategies, without updating model parameters.
+These methods mainly improve SQL generation by organizing database schemas, sampled contents, task instructions, demonstrations, and decomposition hints into effective prompts~\cite{gao2023text,li2023can,sun2023sql,pourreza2023din}.
+Subsequent studies further enhance prompting with dynamic few-shot selection, self-correction, consistency alignment, and retrieval-augmented evidence construction~\cite{xie2025opensearchsql,ramachandran2024textsqlcalibration,talaei2024chess,pourreza2024chasesql,wang2025linkalign,maamari2024death}.
+These methods are attractive because they are training-free and can leverage increasingly strong backbone LLMs, but their effectiveness often depends on prompt design, retrieved evidence quality, and the capability of the underlying model.
 
 \textbf{Agentic Text-to-SQL Workflows.}
 Recent work further extends LLM prompting into agentic workflows, where LLMs call tools, inspect database context, execute SQL, observe feedback, and revise intermediate outputs. 
 General agent frameworks such as \textsc{ReAct}~\cite{yao2023react}, \textsc{Self-Refine}~\cite{madaan2023selfrefine}, and \textsc{Reflexion}~\cite{shinn2023reflexion} demonstrate the value of combining reasoning, acting, and iterative self-improvement. 
 Following this paradigm, Text-to-SQL agents organize generation around modules such as schema exploration, candidate generation, execution-based repair, multi-path reasoning, semantic memory, and agentic view construction~\cite{wang2023mac,pourreza2024chasesql,deng2025reforce,chaturvedi2025sqlthought,heidari2025agentiql,yang2025marssql,pham2026avsql,biswal2026agentsm}.
-These systems are more robust than single-shot prompting because they can query the database, compare alternatives, and use observed failures to revise SQL.
-Nevertheless, most existing agents still instantiate a largely fixed workflow: similar modules are invoked for most questions, and database feedback is mainly used for post-generation repair, validation, or candidate selection rather than for continuous process control.
+These systems are more robust than prompting-based methods because they can query the database, compare alternatives, and use observed failures to revise SQL.
+As discussed in Section~\ref{sec:intro}, most existing agents still follow largely predefined workflows and strategy choices, use feedback mainly for post-generation repair, validation, or candidate selection, and pay limited attention to efficiency optimization.
 
 \textbf{Difference from \toolname.}
 Existing prompting-based and agentic Text-to-SQL methods mainly focus on improving correctness through better grounding, decomposition, and post-hoc refinement.

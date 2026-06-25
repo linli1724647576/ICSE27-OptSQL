@@ -29,11 +29,212 @@
 
 
 % Performance Evaluation  (Token 消耗)
-% Error Analysis
 % Ablation Study
+% Error Analysis
 
 % 统计显著性检验
 % 重复运行5次?
 
 
 % 效率评估： 在一个model上面做就好了
+
+%Full OptSQL
+%w/o Dynamic Controller  把 Meta-Cognitive Controller 替换成固定 workflow
+%w/o Process-level Reflection  只保留最终 validation/repair，不允许中间切换策略、补 evidence、重试 rewrite
+%w/o Optimization Loop 生成 initial SQL 后直接输出
+%w/o AEKB 不使用历史 rewrite cases，只用当前 query plan 和静态 rules
+
+
+
+\subsection{Experimental Setup}
+\textbf{Datasets.}
+We evaluate \toolname\ on two complementary benchmarks: \textbf{\textsc{BIRD}}~\cite{li2023can} and \textbf{\textsc{EESQLBench}}~\cite{lin2026cracking}.
+\textsc{BIRD} is a widely used cross-domain Text-to-SQL benchmark, containing more than 12,751 question--SQL pairs over 95 large-scale databases and 37 professional domains.
+It features realistic database scenarios with complex schemas, domain-specific knowledge, and noisy data, making it suitable for evaluating the general Text-to-SQL capability of \toolname.
+%
+To further evaluate the generality and efficiency-oriented capability of \toolname, we use \textsc{EESQLBench}, an efficiency-focused benchmark where each natural language question is paired with an expert-optimized canonical SQL query.
+Its tasks include large databases, complex joins, nested subqueries, aggregation-heavy queries, and optimization-sensitive predicates, enabling us to assess whether \toolname\ can generate SQL queries that are not only semantically correct but also close to human expert-level efficiency.
+
+
+\textbf{Metrics.}
+We evaluate both semantic correctness and execution efficiency.
+Let $q_i^*$ be the canonical SQL, $\hat{q}_i$ be the generated SQL, $S_i$ be the database, and $N$ be the number of test instances.
+We define:
+\[
+\mathbf{1}_i =
+\begin{cases}
+	1, & \mathrm{Exec}(\hat{q}_i,S_i)=\mathrm{Exec}(q_i^*,S_i),\\
+	0, & \text{otherwise}.
+\end{cases}
+\]
+
+\textbf{\textit{Execution Accuracy (EX)}}~\cite{li2023can} measures the fraction of semantically correct outputs:
+\[
+\mathrm{EX}=\frac{1}{N}\sum_{i=1}^{N}\mathbf{1}_i.
+\]
+It evaluates whether the generated SQL produces the correct result, regardless of efficiency.
+
+\textbf{\textit{Valid Efficiency Score (VES)}}~\cite{li2023can} measures runtime-based efficiency for valid outputs:
+\[
+\mathrm{VES}=
+\frac{1}{N}\sum_{i=1}^{N}
+\mathbf{1}_i
+\cdot
+\sqrt{\frac{T(q_i^*,S_i)}{T(\hat{q}_i,S_i)}} ,
+\]
+where $T(q,S)$ denotes execution time.
+VES rewards generated SQLs that are both correct and fast, but it may be affected by runtime noise.
+
+\textbf{\textit{Cost Reachability (CR)}}~\cite{lin2026cracking} measures how close a correct generated SQL is to the expert-optimized SQL in terms of plan-level cost:
+\[
+\mathrm{CR}_i=
+\frac{\mathrm{Cost}(q_i^*,S_i)}
+{\mathrm{Cost}(\hat{q}_i,S_i)}, \quad
+R_i=\sqrt{\mathrm{CR}*i},
+\]
+\[
+\mathrm{CR}=
+\frac{\sum*{i=1}^{N}\mathbf{1}*i\cdot R_i}
+{\sum*{i=1}^{N}\mathbf{1}_i}.
+\]
+On \textsc{EESQLBench}, $\mathrm{Cost}(\cdot)$ is measured by Total Scanned Rows, i.e., the total number of rows processed by physical operators in the query plan.
+A higher CR means the generated SQL is closer to expert-level efficiency.
+
+\textbf{\textit{Acceptable Reachability at $k$ (AR@$k$)}}~\cite{lin2026cracking} measures the fraction of all test instances where the generated SQL is both correct and sufficiently efficient:
+\[
+\mathrm{AR}@k=
+\frac{1}{N}
+\sum_{i=1}^{N}
+\mathbf{1}_i\cdot \mathbf{1}(\mathrm{CR}_i\ge k).
+\]
+We report AR@1 and AR@0.8.
+AR@1 counts correct queries whose cost is no higher than the expert SQL, while AR@0.8 allows the generated SQL to be at most $1.25\times$ the expert cost.
+
+\textbf{Baselines.}
+We compare \toolname\ with three categories of representative Text-to-SQL methods:
+
+\begin{itemize}[leftmargin=10pt]
+\item \textbf{\textit{Fine-tuning-based methods.}}
+This category includes models that rely on in-domain training data or task-specific fine-tuning to improve Text-to-SQL performance.
+We include \textbf{\textsc{XiYan-SQL}}~\cite{liu2025xiyansql} and \textbf{\textsc{Omni-SQL}}~\cite{li2025omnisql}, using their released checkpoints \textsc{XiYanSQL-QwenCoder-32B-2504} and \textsc{OmniSQL-32B}.
+These baselines are used to examine whether \toolname, without task-specific fine-tuning, can achieve competitive performance compared with trained Text-to-SQL models.
+
+\item \textbf{\textit{Prompting-based methods.}}
+This category contains training-free methods that adapt general-purpose LLMs to Text-to-SQL at inference time through prompting, schema serialization, demonstration retrieval, and reasoning instructions.
+We include \textbf{\textsc{DIN-SQL}}~\cite{pourreza2023din} and \textbf{\textsc{DAIL-SQL}}~\cite{gao2023text}.
+
+\item \textbf{\textit{Agentic Text-to-SQL workflows.}}
+We further compare with agent-based Text-to-SQL systems, including \textbf{\textsc{MAC-SQL}}~\cite{wang2023mac} and \textbf{\textsc{DeepEye}}~\cite{li2026deepeye}.
+These methods decompose Text-to-SQL into multiple agentic steps, such as schema linking, SQL generation, execution-based refinement, and candidate selection.
+They provide strong baselines for evaluating whether the meta-cognitive controller and optimization loop in \toolname\ bring additional benefits beyond existing agentic workflows.
+\end{itemize}
+
+To ensure a fair comparison, for prompting-based methods and agentic workflows, we evaluate all systems under the same backbone LLMs.
+Specifically, we use three representative backbones: \textsc{Qwen3-Coder-30B-A3B-Instruct}, \textsc{DeepSeek-v4-pro}, and \textsc{GPT-5.4}.
+%For fine-tuning-based methods, since their performance depends on released task-specific checkpoints, we directly use their official checkpoints and report them separately from the backbone-controlled comparison.
+
+
+\textbf{Environment.} 
+We perform our experiments on a workstation an 8-core ``11th Gen Intel(R) Core(TM) i7-11700@2.50GHz'' processor, 64GB of memory, and NVIDIA RTX A6000 with 48GB of VRAM running Ubuntu 22.04.1 LTS.
+For open-source LLMs, we deploy a local API server based on vLLM~\cite{kwon2023efficient} which is a unified library for LLM serving and inference.
+For GPT-5.4, we query the respective official APIs with matching decoding settings.
+
+\subsection{Performance Comparison}
+
+\begin{table*}[t]
+	\centering
+	\vspace{-2mm}
+	\caption{\textbf{Overall performance comparison on \textsc{BIRD} and \textsc{EESQLBench}.}
+		For both benchmarks, we report EX, VES, CR, AR@1, and AR@0.8.
+		The best results are highlighted in bold.}
+	\vspace{-2mm}
+	\label{tab:overall-performance}
+	\footnotesize
+	\setlength{\tabcolsep}{7.5pt}
+	\renewcommand{\arraystretch}{0.95}
+	\begin{tabular}{llcccccccccc}
+		\toprule
+		\multirow{2}{*}{\textbf{Method}}
+		& \multirow{2}{*}{\textbf{LLM}}
+		& \multicolumn{5}{c}{\textbf{\textsc{BIRD}}}
+		& \multicolumn{5}{c}{\textbf{\textsc{EESQLBench}}} \\
+		\cmidrule(lr){3-7}
+		\cmidrule(lr){8-12}
+		& & \textbf{EX} & \textbf{VES} & \textbf{CR} & \textbf{AR@1} & \textbf{AR@0.8}
+		& \textbf{EX} & \textbf{VES} & \textbf{CR} & \textbf{AR@1} & \textbf{AR@0.8} \\
+		\midrule
+		
+		\multicolumn{12}{l}{\textit{Fine-tuning-based methods}} \\
+		\midrule
+		\textsc{XiYan-SQL} 
+		& \textsc{XiYan-32B} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		
+		\textsc{Omni-SQL} 
+		& \textsc{OmniSQL-32B} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		
+		\midrule
+		\multicolumn{12}{l}{\textit{Prompting-based methods}} \\
+		\midrule
+		\multirow{3}{*}{\textsc{DIN-SQL}}
+		& \textsc{Qwen3-Coder} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& \textsc{DeepSeek-v4} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& \textsc{GPT-5.4} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		\midrule
+		
+		\multirow{3}{*}{\textsc{DAIL-SQL}}
+		& \textsc{Qwen3-Coder} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& \textsc{DeepSeek-v4} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& \textsc{GPT-5.4} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		
+		\midrule
+		\multicolumn{12}{l}{\textit{Agentic Text-to-SQL workflows}} \\
+		\midrule
+		\multirow{3}{*}{\textsc{MAC-SQL}}
+		& \textsc{Qwen3-Coder} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& \textsc{DeepSeek-v4} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& \textsc{GPT-5.4} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		\midrule
+		
+		\multirow{3}{*}{\textsc{DeepEye}}
+		& \textsc{Qwen3-Coder} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& \textsc{DeepSeek-v4} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& \textsc{GPT-5.4} 
+		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		
+		\midrule
+		\multirow{3}{*}{\textbf{\toolname}}
+		& \textsc{Qwen3-Coder} 
+		& \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--}
+		& \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
+		& \textsc{DeepSeek-v4} 
+		& \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--}
+		& \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
+		& \textsc{GPT-5.4} 
+		& \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--}
+		& \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
+		
+		\bottomrule
+	\end{tabular}
+	\vspace{-4mm}
+	
+\end{table*}
+
+
+
+
+
+\subsection{Ablation Study}
+\subsection{Error Analysis}
