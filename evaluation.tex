@@ -36,25 +36,17 @@
 % 重复运行5次?
 
 
-% 效率评估： 在一个model上面做就好了
-
-%Full OptSQL
-%w/o Dynamic Controller  把 Meta-Cognitive Controller 替换成固定 workflow
-%w/o Process-level Reflection  只保留最终 validation/repair，不允许中间切换策略、补 evidence、重试 rewrite
-%w/o Optimization Loop 生成 initial SQL 后直接输出
-%w/o AEKB 不使用历史 rewrite cases，只用当前 query plan 和静态 rules
-
-
 
 \subsection{Experimental Setup}
 \textbf{Datasets.}
 We evaluate \toolname\ on two complementary benchmarks: \textbf{\textsc{BIRD}}~\cite{li2023can} and \textbf{\textsc{EESQLBench}}~\cite{lin2026cracking}.
+%\begin{itemize}[leftmargin=10pt]
 \textsc{BIRD} is a widely used cross-domain Text-to-SQL benchmark, containing more than 12,751 question--SQL pairs over 95 large-scale databases and 37 professional domains.
 It features realistic database scenarios with complex schemas, domain-specific knowledge, and noisy data, making it suitable for evaluating the general Text-to-SQL capability of \toolname.
 %
-To further evaluate the generality and efficiency-oriented capability of \toolname, we use \textsc{EESQLBench}, an efficiency-focused benchmark where each natural language question is paired with an expert-optimized canonical SQL query.
-Its tasks include large databases, complex joins, nested subqueries, aggregation-heavy queries, and optimization-sensitive predicates, enabling us to assess whether \toolname\ can generate SQL queries that are not only semantically correct but also close to human expert-level efficiency.
-
+To further evaluate the generality and efficiency-oriented capability of \toolname, we use \textsc{EESQLBench}, an efficiency-focused benchmark containing 213 tasks, where each natural language question is paired with an expert-optimized canonical SQL query.
+Its tasks include large databases, complex joins, nested subqueries, and optimization-sensitive predicates, enabling us to assess whether \toolname\ can generate SQL queries that are not only semantically correct but also close to human expert-level efficiency.
+%\end{itemize}
 
 \textbf{Metrics.}
 We evaluate both semantic correctness and execution efficiency.
@@ -85,20 +77,27 @@ It evaluates whether the generated SQL produces the correct result, regardless o
 where $T(q,S)$ denotes execution time.
 VES rewards generated SQLs that are both correct and fast, but it may be affected by runtime noise.
 
-\textbf{\textit{Cost Reachability (CR)}}~\cite{lin2026cracking} measures how close a correct generated SQL is to the expert-optimized SQL in terms of plan-level cost:
+\textbf{\textit{Cost Reachability (CR)}}~\cite{lin2026cracking} measures how close a generated SQL is to the expert-optimized SQL in terms of plan-level cost.
+For each semantically correct instance, we define the instance-level cost ratio:
 \[
 \mathrm{CR}_i=
 \frac{\mathrm{Cost}(q_i^*,S_i)}
-{\mathrm{Cost}(\hat{q}_i,S_i)}, \quad
-R_i=\sqrt{\mathrm{CR}*i},
+{\mathrm{Cost}(\hat{q}_i,S_i)}.
 \]
+The overall CR is computed as:
 \[
 \mathrm{CR}=
-\frac{\sum*{i=1}^{N}\mathbf{1}*i\cdot R_i}
-{\sum*{i=1}^{N}\mathbf{1}_i}.
+\frac{1}{\sum_{i=1}^{N} \mathbf{1}_i}
+\sum_{i=1}^{N}
+\mathbf{1}_i
+\cdot
+\sqrt{
+	\mathrm{CR}_i
+}.
 \]
 On \textsc{EESQLBench}, $\mathrm{Cost}(\cdot)$ is measured by Total Scanned Rows, i.e., the total number of rows processed by physical operators in the query plan.
-A higher CR means the generated SQL is closer to expert-level efficiency.
+A higher CR indicates that the generated SQL is closer to expert-level efficiency.
+
 
 \textbf{\textit{Acceptable Reachability at $k$ (AR@$k$)}}~\cite{lin2026cracking} measures the fraction of all test instances where the generated SQL is both correct and sufficiently efficient:
 \[
@@ -145,12 +144,12 @@ For GPT-5.4, we query the respective official APIs with matching decoding settin
 	\centering
 	\vspace{-2mm}
 	\caption{\textbf{Overall performance comparison on \textsc{BIRD} and \textsc{EESQLBench}.}
-		For both benchmarks, we report EX, VES, CR, AR@1, and AR@0.8.
+		For both benchmarks, we report EX, VES, CR, AR@0.8, and AR@1.
 		The best results are highlighted in bold.}
 	\vspace{-2mm}
 	\label{tab:overall-performance}
 	\footnotesize
-	\setlength{\tabcolsep}{7.5pt}
+	\setlength{\tabcolsep}{6.0pt}
 	\renewcommand{\arraystretch}{0.95}
 	\begin{tabular}{llcccccccccc}
 		\toprule
@@ -160,71 +159,77 @@ For GPT-5.4, we query the respective official APIs with matching decoding settin
 		& \multicolumn{5}{c}{\textbf{\textsc{EESQLBench}}} \\
 		\cmidrule(lr){3-7}
 		\cmidrule(lr){8-12}
-		& & \textbf{EX} & \textbf{VES} & \textbf{CR} & \textbf{AR@1} & \textbf{AR@0.8}
-		& \textbf{EX} & \textbf{VES} & \textbf{CR} & \textbf{AR@1} & \textbf{AR@0.8} \\
+		& & \textbf{EX(\%)} & \textbf{VES} & \textbf{CR} & \textbf{AR@0.8(\%)} & \textbf{AR@1(\%)}
+		& \textbf{EX(\%)} & \textbf{VES} & \textbf{CR} & \textbf{AR@0.8(\%)} & \textbf{AR@1(\%)} \\
 		\midrule
 		
 		\multicolumn{12}{l}{\textit{Fine-tuning-based methods}} \\
 		\midrule
 		\textsc{XiYan-SQL} 
 		& \textsc{XiYan-32B} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 58.61 & 71.28 & 1.01 & 57.37 & 56.65 & 16.13 & -- & -- & -- & -- \\
 		
 		\textsc{Omni-SQL} 
 		& \textsc{OmniSQL-32B} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 49.41 & 57.03 & 1.00 & 47.45 & 46.48 & 15.05 & -- & -- & -- & -- \\
 		
 		\midrule
 		\multicolumn{12}{l}{\textit{Prompting-based methods}} \\
 		\midrule
 		\multirow{3}{*}{\textsc{DIN-SQL}}
 		& \textsc{Qwen3-Coder} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 57.63 & 64.29 & 1.86 & 54.41 & 52.80 & 28.50 & -- & -- & -- & -- \\
 		& \textsc{DeepSeek-v4} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 59.06 & 66.43 & 1.77 & 56.30 & 55.00 & -- & -- & -- & -- & -- \\
 		& \textsc{GPT-5.4} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 42.05 & 46.42 & 1.42 & 39.81 & 38.62 & -- & -- & -- & -- & -- \\
 		\midrule
 		
 		\multirow{3}{*}{\textsc{DAIL-SQL}}
 		& \textsc{Qwen3-Coder} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 60.63 & 66.32 & 1.50 & 56.01 & 54.31 & -- & -- & -- & -- & -- \\
 		& \textsc{DeepSeek-v4} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 39.99 & 65.64 & \textbf{2.25} & 38.73 & 37.81 & -- & -- & -- & -- & -- \\
 		& \textsc{GPT-5.4} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 62.26 & 68.61 & 1.70 & 59.51 & 57.50 & -- & -- & -- & -- & -- \\
 		
 		\midrule
 		\multicolumn{12}{l}{\textit{Agentic Text-to-SQL workflows}} \\
 		\midrule
 		\multirow{3}{*}{\textsc{MAC-SQL}}
 		& \textsc{Qwen3-Coder} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 65.71 & 72.21 & 1.83 & 61.40 & 59.12 & -- & -- & -- & -- & -- \\
 		& \textsc{DeepSeek-v4} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 63.89 & 74.14 & 2.06 & 57.42 & 55.60 & -- & -- & -- & -- & -- \\
 		& \textsc{GPT-5.4} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 66.56 & 75.47 & 1.87 & 59.60 & 57.12 & -- & -- & -- & -- & -- \\
 		\midrule
 		
 		\multirow{3}{*}{\textsc{DeepEye}}
 		& \textsc{Qwen3-Coder} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 72.50 & 81.52 & 1.69 & 69.60 & 67.30 & -- & -- & -- & -- & -- \\
 		& \textsc{DeepSeek-v4} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 69.56 & 77.35 & 1.69 & 65.48 & 63.24 & -- & -- & -- & -- & -- \\
 		& \textsc{GPT-5.4} 
-		& -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+		& 68.45 & 74.94 & 1.70 & 63.41 & 61.30 & -- & -- & -- & -- & -- \\
 		
 		\midrule
-		\multirow{3}{*}{\textbf{\toolname}}
-		& \textsc{Qwen3-Coder} 
-		& \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--}
+		\rowcolor{gray!10}
+		& \textsc{Qwen3-Coder}
+		& \textbf{73.29} & 82.42 & 1.70 & \textbf{69.85} & \textbf{67.96}
 		& \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
-		& \textsc{DeepSeek-v4} 
-		& \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--}
+		
+		\rowcolor{gray!10}
+		& \textsc{DeepSeek-v4}
+		& 71.55 & \textbf{83.02} & 1.74 & 66.05 & 63.91
 		& \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
-		& \textsc{GPT-5.4} 
-		& \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--}
+		
+		\rowcolor{gray!10}
+		\multirow{-3}{*}{\cellcolor{gray!10}\textbf{\toolname}}
+		& \textsc{GPT-5.4}
+		& 69.98 & 76.32 & 1.72 & 64.85 & 62.58
 		& \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} & \textbf{--} \\
+		
 		
 		\bottomrule
 	\end{tabular}
@@ -232,9 +237,68 @@ For GPT-5.4, we query the respective official APIs with matching decoding settin
 	
 \end{table*}
 
+\textbf{Overall Results.}
+% 总体性能 + 统计验证  参考 SchemaRAG
 
+%\textbf{在 BIRD 数据集上的表现.}
 
+%\textbf{在 EESQLBench 数据集上的表现.}
 
+\textbf{Costs}
 
 \subsection{Ablation Study}
+% 效率评估： 在一个 GPT 上面做就好了
+% 评估指标选取 EX （反应correct的代表性指标) 和 AR@1 （反应 correct 和 efficiency 的代表性指标）
+
+%Full OptSQL
+%w/o Dynamic Controller  把 Meta-Cognitive Controller 替换成固定 workflow
+%w/o Process-level Reflection  只保留最终 validation/repair，不允许中间切换策略、补 evidence、重试 rewrite
+%w/o Optimization Loop 生成 initial SQL 后直接输出
+%w/o AEKB 不使用历史 rewrite cases，只用当前 query plan 和静态 rules
+
+To understand the contribution of each core component in \toolname, we conduct an ablation study on both \textsc{BIRD} and \textsc{EESQLBench} using GPT-5.4 as the backbone LLM.
+We report EX to measure semantic correctness and AR@1 to measure the fraction of generated SQL queries that are both correct and no more expensive than the canonical SQL.
+We compare the full \toolname\ with four ablated variants:
+
+\begin{itemize}[leftmargin=10pt]
+	\item \textbf{w/o Adaptation}: replaces the Meta-Cognitive Controller with a fixed workflow.
+	\item \textbf{w/o Refection}: removes process-level reflection and only keeps final validation and repair.
+	\item \textbf{w/o Optimization}: disables the Optimization Loop and directly outputs the SQL after generation phase.
+	\item \textbf{w/o AEKB}: disables AEKB-based historical rewrite-case retrieval and only uses current query plans and static optimization rules.
+\end{itemize}
+
+\begin{table}[t]
+	\centering
+%	\vspace{-2mm}
+	\caption{\textbf{Ablation study on \textsc{BIRD} and \textsc{EESQLBench}.}
+		We use \textsc{GPT-5.4} as the backbone LLM and report EX and AR@1.}
+	\vspace{-2mm}
+	\label{tab}
+	\footnotesize
+	\setlength{\tabcolsep}{5.5pt}
+	\renewcommand{\arraystretch}{0.95}
+	\begin{tabular}{lcccc}
+		\toprule
+		\multirow{2}{*}{\textbf{Variant}}
+		& \multicolumn{2}{c}{\textbf{\textsc{BIRD}}}
+		& \multicolumn{2}{c}{\textbf{\textsc{EESQLBench}}} \\
+		\cmidrule(lr){2-3}
+		\cmidrule(lr){4-5}
+		& \textbf{EX(\%)} & \textbf{AR@1(\%)}
+		& \textbf{EX(\%)} & \textbf{AR@1(\%)} \\
+		\midrule
+		Full & -- & -- & -- & -- \\
+		w/o Adaptation & -- & -- & -- & -- \\
+		w/o Refection & -- & -- & -- & -- \\
+		w/o Optimization & -- & -- & -- & -- \\
+		w/o AEKB & -- & -- & -- & -- \\
+		\bottomrule
+	\end{tabular}
+	\vspace{-4mm}
+\end{table}
+
+\lin{add a ablation results.}
+
 \subsection{Error Analysis}
+
+

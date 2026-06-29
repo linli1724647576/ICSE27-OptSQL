@@ -31,6 +31,7 @@ The remainder of this section describes each component of \toolname.
 We first present the Generation Phase for constructing an initial SQL query (Section~\ref{subsec: Generation Phase}), followed by the Optimization Loop for execution- and plan-aware rewriting (Section~\ref{subsec: Optimization Loop}).
 We then introduce the Meta-Cognitive Controller that orchestrates these processes through strategy selection, monitoring, and self-reflection (Section~\ref{subsec: Meta-Cognitive Controller}).
 Finally, we describe the Memory Engine and Tool Infrastructure that support retrieval, experience accumulation, and database feedback (Section~\ref{subsec: Memory Engine and Tool Infrastructure}).
+Due to space limitations, we will release a detailed case study in our GitHub repository to illustrate how \toolname realizes its key designs. \lin{add a url}
 
 \subsection{Generation Phase}
 \label{subsec: Generation Phase}
@@ -145,7 +146,7 @@ Instead, they serve as evidence for the SQL Rewriter Agent, which decides how to
 \begin{table*}[t]
 	\centering
 	\vspace{-2mm}
-	\caption{\textbf{Optimization patterns used by the Explain Analyzer Agent.}}
+	\caption{\textbf{Representative optimization patterns used by the Explain Analyzer Agent.}}
 	\vspace{-2mm}
 	\label{tab:explain-analyzer}
 %	\small
@@ -353,5 +354,6 @@ It consists of three groups of tools:
 
 Together, these tools allow \toolname\ to ground reasoning in concrete database evidence, analyze execution behavior, retrieve relevant optimization experience, and update memory after successful rewrites.
 
-\section{Case Study}
-\label{sec:case study}
+
+%\section{Case Study}
+%\label{sec:case study}
