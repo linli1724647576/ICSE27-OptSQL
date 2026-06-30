@@ -3,16 +3,26 @@
 
 % Contribution of EX. 和其他 Agent 相比，EX 的提升点在哪里
 % Contribution of CR. 接入其他Agent后，CR是否可以提升
-
+\vspace{-1mm}
 \section{Threats to Validity}
 
-\textbf{Internal Threats.}
-One internal threat lies in the use of execution accuracy (EX) as the primary correctness metric.
+%\textbf{Internal threat}
+%lies in the use of execution accuracy (EX) as the primary correctness metric.
+%Although EX is widely used in Text-to-SQL evaluation, it may not always faithfully reflect semantic correctness, since the gold SQL can be imperfect, or an incorrect predicted SQL may coincidentally produce the same execution result as the gold SQL.
+%To assess this risk, we randomly inspected 100 evaluated cases and found that 95 cases were correctly judged by EX, suggesting that the impact of this issue is limited in our evaluation.
+
+%\textbf{Internal Threats.}
+The main internal threat lies in the use of EX as the primary correctness metric.
 Although EX is widely used in Text-to-SQL evaluation, it may not always faithfully reflect semantic correctness, since the gold SQL can be imperfect, or an incorrect predicted SQL may coincidentally produce the same execution result as the gold SQL.
 To assess this risk, we randomly inspected 100 evaluated cases and found that 95 cases were correctly judged by EX, suggesting that the impact of this issue is limited in our evaluation.
-
-\textbf{External Threats.}
-Another threat concerns the potential data leakage of public benchmarks.
+%
+%\textbf{External threat} concerns the potential data leakage of public benchmarks.
+%Since some backbone LLMs may have been exposed to \textsc{BIRD} during pretraining, their performance on \textsc{BIRD} may not fully reflect generalization to unseen tasks.
+%To mitigate this risk, we additionally evaluate \toolname\ on \textsc{EESQLBench}, which was released after the expected knowledge cutoff of the selected models and therefore substantially reduces the likelihood of direct benchmark leakage.
+%This additional benchmark helps assess the generality and efficiency-oriented capability of \toolname\ under a less leakage-prone setting.
+%
+%\textbf{External Threats.}
+External threats concern the potential data leakage of public benchmarks.
 Since some backbone LLMs may have been exposed to \textsc{BIRD} during pretraining, their performance on \textsc{BIRD} may not fully reflect generalization to unseen tasks.
-To mitigate this risk, we additionally evaluate \toolname\ on \textsc{EESQLBench}, which was released after the expected knowledge cutoff of the selected models and therefore substantially reduces the likelihood of direct benchmark leakage.
+To mitigate this risk, we additionally evaluate \toolname\ on \textsc{EESQLBench}, which was released after the expected knowledge cutoff of the selected models and thus reduces the likelihood of direct benchmark leakage.
 This additional benchmark helps assess the generality and efficiency-oriented capability of \toolname\ under a less leakage-prone setting.

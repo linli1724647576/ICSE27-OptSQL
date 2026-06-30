@@ -1,0 +1,131 @@
+task,major_category,minor_category,id,db_id,question,evidence,pred_sql,gold_sql,reason,optional_rewrite,notes
+correct,Gold Error,Aggregation,435,card_games,How many card border with black color ? List out the card id.,border with black color refers to borderColor = 'black',SELECT id FROM cards WHERE borderColor = 'black',SELECT id FROM cards WHERE borderColor = 'black' GROUP BY id,"Question asks both “How many” and to list IDs/names, but gold SQL does not return COUNT.",,CHESS-style incorrect golden SQL candidate; confidence=strong_candidate; rule=how_many_and_list_but_gold_lacks_count
+correct,Gold Error,Column,267,toxicology,List down the bond type for molecules from molecule id TR000 to TR050.,double bond refers to bond_type = ' = '; single bond refers to bond_type = '-'; triple bond refers to bond_type = '#';,"SELECT DISTINCT b.bond_type
+FROM bond b
+JOIN molecule m ON b.molecule_id = m.molecule_id
+WHERE m.molecule_id BETWEEN 'TR000' AND 'TR050'","SELECT T2.molecule_id, T2.bond_type FROM molecule AS T1 INNER JOIN bond AS T2 ON T1.molecule_id = T2.molecule_id WHERE T1.molecule_id BETWEEN 'TR000' AND 'TR050'","Question asks for bond type; gold also selects molecule_id. CHESS flags this as extra selected column, but it is somewhat ambiguous.",,CHESS-style incorrect golden SQL candidate; confidence=possible_candidate; rule=bond_type_question_gold_selects_extra_molecule_id
+correct,Gold Error,Description,937,formula_1,What's the finish time for the driver who ranked second in 2008's AustChineseralian Grand Prix?,finish time refers to time; Chinese Grand Prix refers to races.name = 'Chinese Grand Prix';,"SELECT r.time
+FROM races ra
+INNER JOIN results r ON ra.raceId = r.raceId
+WHERE ra.name = 'Chinese Grand Prix' 
+AND ra.year = 2008
+AND r.position = 2",SELECT T1.time FROM results AS T1 INNER JOIN races AS T2 on T1.raceId = T2.raceId WHERE T1.rank = 2 AND T2.name = 'Chinese Grand Prix' AND T2.year = 2008,DB description says positionOrder is finishing order while rank is fastest-lap/start-rank related; gold uses rank for finish-time question.,,CHESS-style incorrect golden SQL candidate; confidence=confirmed_candidate; rule=finish_time_uses_rank_instead_of_position_order
+correct,Gold Error,Filtering,593,codebase_community,How many users from New York have a teacher and supporter badge?,"""Supporter"" and ""Teachers"" are both Name of badge; 'New York' is the Location; user refers to UserId","SELECT COUNT(*) 
+FROM users u
+INNER JOIN badges b1 ON u.Id = b1.UserId
+INNER JOIN badges b2 ON u.Id = b2.UserId
+WHERE u.Location = 'New York' 
+AND b1.Name = 'Teacher' 
+AND b2.Name = 'Supporter'","SELECT COUNT(DISTINCT T1.Id) FROM badges AS T1 INNER JOIN users AS T2 ON T1.UserId = T2.Id WHERE T1.Name IN ('Supporter', 'Teacher') AND T2.Location = 'New York'","Question asks users having both badge/category values, but gold uses IN, which permits either value and lacks HAVING COUNT(DISTINCT ...)=2.",,CHESS-style incorrect golden SQL candidate; confidence=confirmed_candidate; rule=both_badges_gold_uses_in_without_having
+correct,Gold Error,Group By/Distinct,94,financial,"List out the account numbers of female clients who are oldest and has lowest average salary, calculate the gap between this lowest average salary with the highest average salary?","Female means gender = 'F'; A11 refers to average salary; Gap = highest average salary - lowest average salary; If the person A's birthdate > B's birthdate, it means that person B is order than person A.","SELECT 
+    a.account_id,
+    (SELECT MAX(d.A11) - MIN(d.A11) FROM district d) AS salary_gap
+FROM client c
+JOIN disp d ON c.client_id = d.client_id
+JOIN account a ON d.account_id = a.account_id
+WHERE c.gender = 'F'
+AND c.birth_date = (
+    SELECT birth_date 
+    FROM client 
+    WHERE gender = 'F' 
+    ORDER BY birth_date ASC 
+    LIMIT 1
+)
+AND c.district_id = (
+    SELECT district_id 
+    FROM client 
+    WHERE gender = 'F' 
+    AND birth_date = (
+        SELECT birth_date 
+        FROM client 
+        WHERE gender = 'F' 
+        ORDER BY birth_date ASC 
+        LIMIT 1
+    )
+    ORDER BY district_id ASC
+    LIMIT 1
+)","SELECT T1.account_id , ( SELECT MAX(A11) - MIN(A11) FROM district ) FROM account AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id INNER JOIN disp AS T3 ON T1.account_id = T3.account_id INNER JOIN client AS T4 ON T3.client_id = T4.client_id WHERE T2.district_id = ( SELECT district_id FROM client WHERE gender = 'F' ORDER BY birth_date ASC LIMIT 1 ) ORDER BY T2.A11 DESC LIMIT 1",Gold SELECT mixes aggregate and non-aggregate outputs without GROUP BY; CHESS treats this pattern as a likely missing GROUP BY issue.,,CHESS-style incorrect golden SQL candidate; confidence=strong_candidate; rule=aggregate_nonaggregate_without_group_by
+correct,Gold Error,Operation,1527,debit_card_specializing,Which gas station has the highest amount of revenue?,,"SELECT GasStationID
+FROM transactions_1k
+GROUP BY GasStationID
+ORDER BY SUM(Price * Amount) DESC
+LIMIT 1",SELECT GasStationID FROM transactions_1k GROUP BY GasStationID ORDER BY SUM(Price) DESC LIMIT 1,DB description says total price = Amount x Price; gold ranks by SUM(Price) only.,,CHESS-style incorrect golden SQL candidate; confidence=confirmed_candidate; rule=revenue_should_use_amount_times_price
+correct,Intent-violating Hallucination,Aggregation Function Misuse,33,california_schools,"If there are any, what are the websites address of the schools with a free meal count of 1,900-2,000 to students aged 5-17? Include the name of the school.",,"SELECT DISTINCT s.Website, s.School
+FROM frpm f
+INNER JOIN schools s ON f.CDSCode = s.CDSCode
+WHERE f.`Free Meal Count (Ages 5-17)` BETWEEN 1900 AND 2000
+AND f.`Free Meal Count (Ages 5-17)` IS NOT NULL","SELECT T2.Website, T1.`School Name` FROM frpm AS T1 INNER JOIN schools AS T2 ON T1.CDSCode = T2.CDSCode WHERE T1.`Free Meal Count (Ages 5-17)` BETWEEN 1900 AND 2000 AND T2.Website IS NOT NULL","The aggregate-function pattern differs from the gold SQL: predicted {'count': 2}, gold {'count': 1}.",,taxonomy_rule_reviewed; gold_error_not_confirmed_without_db
+correct,Intent-violating Hallucination,Column Selection Error,63,california_schools,"In chartered schools with charter number 00D2, what are the names of all the administrators? Include the name of the school and the city to which it belongs","Chartered schools refer to Charter = 1 in the table schools; Full name refers to first name, last name","SELECT AdmFName1, AdmLName1, AdmFName2, AdmLName2, AdmFName3, AdmLName3, School, City 
+FROM schools 
+WHERE Charter = 1 AND CharterNum = '00D2'","SELECT AdmFName1, AdmLName1, School, City FROM schools WHERE Charter = 1 AND CharterNum = '00D2'",The predicted SELECT output columns or expressions differ from the gold SQL.,,taxonomy_rule_reviewed; gold_error_not_confirmed_without_db
+correct,Intent-violating Hallucination,Condition Logic Hallucination,28,california_schools,"Consider the average difference between K-12 enrollment and 15-17 enrollment of schools that are locally funded, list the names and DOC type of schools which has a difference above this average.",Difference between K-12 enrollment and 15-17 enrollment can be computed by `Enrollment (K-12)` - `Enrollment (Ages 5-17)`,"SELECT 
+    f.""School Name"",
+    s.""DOCType""
+FROM frpm f
+JOIN schools s ON f.""CDSCode"" = s.""CDSCode""
+WHERE f.""Charter Funding Type"" = 'Locally funded'
+    AND (f.""Enrollment (K-12)"" - f.""Enrollment (Ages 5-17)"") > (
+        SELECT AVG(f2.""Enrollment (K-12)"" - f2.""Enrollment (Ages 5-17)"")
+        FROM frpm f2
+        JOIN schools s2 ON f2.""CDSCode"" = s2.""CDSCode""
+        WHERE f2.""Charter Funding Type"" = 'Locally funded'
+    )","SELECT T2.School, T2.DOC FROM frpm AS T1 INNER JOIN schools AS T2 ON T1.CDSCode = T2.CDSCode WHERE T2.FundingType = 'Locally funded' AND (T1.`Enrollment (K-12)` - T1.`Enrollment (Ages 5-17)`) > (SELECT AVG(T3.`Enrollment (K-12)` - T3.`Enrollment (Ages 5-17)`) FROM frpm AS T3 INNER JOIN schools AS T4 ON T3.CDSCode = T4.CDSCode WHERE T4.FundingType = 'Locally funded')","The predicted WHERE/HAVING conditions do not match the gold SQL, causing a different filtered result set.",,taxonomy_rule_reviewed; gold_error_not_confirmed_without_db
+correct,Intent-violating Hallucination,Distinct Error,49,california_schools,Which different county has the most number of closed schools? Please provide the name of each school as well as the closure date.,Closure date and closed date are synonyms; 'Closed' was mentioned in schools.StatusType.,"SELECT s.""School"", s.""ClosedDate""
+FROM ""schools"" AS s
+WHERE s.""County"" = (
+    SELECT ""County""
+    FROM ""schools""
+    WHERE ""StatusType"" = 'Closed'
+    GROUP BY ""County""
+    ORDER BY COUNT(*) DESC
+    LIMIT 1
+)
+AND s.""StatusType"" = 'Closed'","SELECT DISTINCT County, School, ClosedDate FROM schools WHERE County = ( SELECT County FROM schools WHERE StatusType = 'Closed' GROUP BY County ORDER BY COUNT(School) DESC LIMIT 1 ) AND StatusType = 'Closed' AND school IS NOT NULL",The predicted SQL and gold SQL differ in DISTINCT or COUNT(DISTINCT ...) usage.,,taxonomy_rule_reviewed; gold_error_not_confirmed_without_db
+correct,Intent-violating Hallucination,GroupBy Misuse,309,toxicology,List out the atom id that belongs to the TR346 molecule and how many bond type can be created by this molecule?,,"SELECT a.atom_id, 
+       (SELECT COUNT(DISTINCT bond_type) 
+        FROM bond 
+        WHERE molecule_id = 'TR346') AS bond_type_count
+FROM atom a
+WHERE a.molecule_id = 'TR346'","SELECT T1.atom_id, COUNT(DISTINCT T2.bond_type),T1.molecule_id FROM atom AS T1 INNER JOIN bond AS T2 ON T1.molecule_id = T2.molecule_id WHERE T1.molecule_id = 'TR000' GROUP BY T1.atom_id, T2.bond_type",The predicted SQL uses a different GROUP BY structure or grouping granularity from the gold SQL.,,taxonomy_rule_reviewed; gold_error_not_confirmed_without_db
+correct,Intent-violating Hallucination,Join Logic Hallucination,40,california_schools,What is the telephone number for the school with the lowest average score in reading in Fresno Unified?,Fresno Unified is a name of district;,"SELECT s.Phone
+FROM schools s
+JOIN satscores sc ON s.CDSCode = sc.cds
+WHERE s.District = 'Fresno Unified'
+ORDER BY sc.AvgScrRead ASC
+LIMIT 1",SELECT T2.Phone FROM satscores AS T1 INNER JOIN schools AS T2 ON T1.cds = T2.CDSCode WHERE T2.District = 'Fresno Unified' AND T1.AvgScrRead IS NOT NULL ORDER BY T1.AvgScrRead ASC LIMIT 1,"The predicted table/join structure differs from the gold SQL: predicted tables=['schools'], gold tables=['satscores'].",,taxonomy_rule_reviewed; gold_error_not_confirmed_without_db
+correct,Intent-violating Hallucination,Limit Error,31,california_schools,What is the eligible free rate of the 10th and 11th schools with the highest enrolment for students in grades 1 through 12?,K-12 refers to students in grades 1 through 12; Eligible free rate for K-12 = `Free Meal Count (K-12)` / `Enrollment (K-12)`,"SELECT ""Percent (%) Eligible Free (K-12)""
+FROM frpm
+JOIN schools ON frpm.""CDSCode"" = schools.""CDSCode""
+ORDER BY ""Enrollment (K-12)"" DESC
+LIMIT 2 OFFSET 9","SELECT CAST(`Free Meal Count (K-12)` AS REAL) / `Enrollment (K-12)` FROM frpm ORDER BY `Enrollment (K-12)` DESC LIMIT 9, 2","The LIMIT requirement differs from the gold SQL: predicted LIMIT=2, gold LIMIT=9.",,taxonomy_rule_reviewed; gold_error_not_confirmed_without_db
+correct,Intent-violating Hallucination,Operator Misuse,23,california_schools,List the names of schools with more than 30 difference in enrollements between K-12 and ages 5-17? Please also give the full street adress of the schools.,Diffrence in enrollement = `Enrollment (K-12)` - `Enrollment (Ages 5-17)`,"SELECT 
+    f.""School Name"",
+    s.""Street""
+FROM 
+    frpm f
+INNER JOIN 
+    schools s ON f.""CDSCode"" = s.""CDSCode""
+WHERE 
+    (f.""Enrollment (K-12)"" - f.""Enrollment (Ages 5-17)"") > 30
+    AND f.""Enrollment (Ages 5-17)"" IS NOT NULL","SELECT T1.School, T1.Street FROM schools AS T1 INNER JOIN frpm AS T2 ON T1.CDSCode = T2.CDSCode WHERE T2.`Enrollment (K-12)` - T2.`Enrollment (Ages 5-17)` > 30",The predicted SQL uses different comparison/operator logic from the gold SQL for the same numeric condition.,,taxonomy_rule_reviewed; gold_error_not_confirmed_without_db
+correct,Intent-violating Hallucination,OrderBy Misuse,17,california_schools,"Rank schools by their average score in Writing where the score is greater than 499, showing their charter numbers.",Valid charter number means the number is not null,"SELECT 
+    sname, 
+    AvgScrWrite, 
+    CharterNum
+FROM 
+    satscores
+JOIN 
+    schools
+ON 
+    satscores.cds = schools.CDSCode
+WHERE 
+    AvgScrWrite > 499
+    AND CharterNum IS NOT NULL
+ORDER BY 
+    AvgScrWrite DESC;","SELECT CharterNum, AvgScrWrite, RANK() OVER (ORDER BY AvgScrWrite DESC) AS WritingScoreRank FROM schools AS T1  INNER JOIN satscores AS T2 ON T1.CDSCode = T2.cds WHERE T2.AvgScrWrite > 499 AND CharterNum is not null","The query involves ranking/extreme selection, but the predicted ORDER BY field or direction differs from the gold SQL.",,taxonomy_rule_reviewed; gold_error_not_confirmed_without_db
+correct,Intent-violating Hallucination,Violating Value Specification,16,california_schools,How many schools in merged Alameda have number of test takers less than 100?,,"SELECT COUNT(*) 
+FROM schools s 
+INNER JOIN satscores ss ON s.CDSCode = ss.cds 
+WHERE s.County = 'Alameda' 
+AND s.StatusType = 'Merged' 
+AND ss.NumTstTakr < 100",SELECT COUNT(T1.CDSCode) FROM schools AS T1 INNER JOIN satscores AS T2 ON T1.CDSCode = T2.cds WHERE T1.StatusType = 'Merged' AND T2.NumTstTakr < 100 AND T1.County = 'Lake',The predicted SQL uses different literal/entity filter values from the gold SQL.,,taxonomy_rule_reviewed; gold_error_not_confirmed_without_db

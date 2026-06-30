@@ -1,0 +1,103 @@
+task,major_category,minor_category,id,db_id,question,evidence,pred_sql,gold_sql,reason,optional_rewrite,notes
+efficiency,Access Strategy,Storage Pushdown,117,financial,What is the percentage of loan amount that has been fully paid with no issue.,"Loan paid with no issue means contract finished, no problems; status = 'A' means contract finished, no problems; Percentage of accounts by condition = [(total(amount) & condition) / (total amount)] * 100%","SELECT ((SUM(CASE WHEN status = 'A' THEN amount ELSE 0 END) * 100.0) / SUM(amount)) AS percentage
+FROM loan",SELECT (CAST(SUM(CASE WHEN status = 'A' THEN amount ELSE 0 END) AS REAL) * 100) / SUM(amount) FROM loan,The SQL can benefit from keeping only the necessary rows and columns as close to the table scan as possible.,,taxonomy_rule_reviewed
+efficiency,Join Logic,Cardinality-Preserving FK Join,8,california_schools,What is the number of SAT test takers of the schools with the highest FRPM count for K-12 students?,,"SELECT s.`NumTstTakr`
+FROM frpm f
+JOIN schools sc ON f.`CDSCode` = sc.`CDSCode`
+JOIN satscores s ON sc.`CDSCode` = s.`cds`
+WHERE NOT f.`FRPM Count (K-12)` IS NULL
+ORDER BY f.`FRPM Count (K-12)` DESC
+LIMIT 1",SELECT NumTstTakr FROM satscores WHERE cds = ( SELECT CDSCode FROM frpm ORDER BY `FRPM Count (K-12)` DESC LIMIT 1 ),"The extra join follows a key relationship and does not contribute selected, filtered, grouped, or ordered information.",,taxonomy_rule_reviewed; join_elimination_split_from=Join Elimination
+efficiency,Join Logic,Existence-Only Join,24,california_schools,Give the names of the schools with the percent eligible for free meals in K-12 is more than 0.1 and test takers whose test score is greater than or equal to 1500?,Percent eligible for free meals = Free Meal Count (K-12) / Total (Enrollment (K-12),"SELECT DISTINCT f.""School Name""
+FROM frpm f
+INNER JOIN schools s ON f.""CDSCode"" = s.""CDSCode""
+INNER JOIN satscores st ON s.""CDSCode"" = st.""cds""
+WHERE (f.""Free Meal Count (K-12)"" / f.""Enrollment (K-12)"") > 0.1
+AND st.""NumGE1500"" > 0",SELECT T2.`School Name` FROM satscores AS T1 INNER JOIN frpm AS T2 ON T1.cds = T2.CDSCode WHERE CAST(T2.`Free Meal Count (K-12)` AS REAL) / T2.`Enrollment (K-12)` > 0.1 AND T1.NumGE1500 > 0,The extra join is mainly used as an existence/membership check and can be avoided or replaced by a lighter semi-join pattern.,,taxonomy_rule_reviewed; join_elimination_split_from=Join Elimination
+efficiency,Join Logic,Filter-Substitutable Join,0,california_schools,What is the highest eligible free rate for K-12 students in the schools in Alameda County?,Eligible free rate for K-12 = `Free Meal Count (K-12)` / `Enrollment (K-12)`,"SELECT MAX(""Free Meal Count (K-12)"" / ""Enrollment (K-12)"") AS highest_rate
+FROM frpm
+INNER JOIN schools ON frpm.""CDSCode"" = schools.""CDSCode""
+WHERE schools.""County"" = 'Alameda' 
+AND frpm.""Free Meal Count (K-12)"" IS NOT NULL",SELECT `Free Meal Count (K-12)` / `Enrollment (K-12)` FROM frpm WHERE `County Name` = 'Alameda' ORDER BY (CAST(`Free Meal Count (K-12)` AS REAL) / `Enrollment (K-12)`) DESC LIMIT 1,"The predicted SQL joins an extra table mainly for filtering, but the filter can be applied through an existing/direct table field.",,taxonomy_rule_reviewed; join_elimination_split_from=Join Elimination
+efficiency,Join Logic,Projection-Substitutable Join,143,financial,What are the accounts that have gold credit cards?,,"SELECT DISTINCT a.account_id
+FROM card c
+INNER JOIN disp d ON c.disp_id = d.disp_id
+INNER JOIN account a ON d.account_id = a.account_id
+WHERE c.type = 'gold'",SELECT T2.account_id FROM disp AS T2  INNER JOIN card AS T1 ON T1.disp_id = T2.disp_id  WHERE T1.type = 'gold',"The predicted SQL joins an extra table mainly for projected columns, but the output can be obtained without that extra join.",,taxonomy_rule_reviewed; join_elimination_split_from=Join Elimination
+efficiency,Join Logic,Redundant Lookup Join,4,california_schools,Please list the phone numbers of the direct charter-funded schools that are opened after 2000/1/1.,Charter schools refers to `Charter School (Y/N)` = 1 in the frpm,"SELECT s.""Phone""
+FROM ""schools"" s
+INNER JOIN ""frpm"" f ON s.""CDSCode"" = f.""CDSCode""
+WHERE f.""Charter School (Y/N)"" = 1 
+AND f.""Charter Funding Type"" = 'Directly funded'
+AND s.""OpenDate"" > '2000-01-01'",SELECT T2.Phone FROM frpm AS T1 INNER JOIN schools AS T2 ON T1.CDSCode = T2.CDSCode WHERE T1.`Charter Funding Type` = 'Directly funded' AND T1.`Charter School (Y/N)` = 1 AND T2.OpenDate > '2000-01-01',The predicted SQL contains an extra lookup join that is not needed for the final answer.,,taxonomy_rule_reviewed; join_elimination_split_from=Join Elimination
+efficiency,Join Logic,Semi-Join Conversion,2,california_schools,Please list the zip code of all the charter schools in Fresno County Office of Education.,Charter schools refers to `Charter School (Y/N)` = 1 in the table fprm,"SELECT DISTINCT s.Zip
+FROM frpm f
+JOIN schools s ON f.CDSCode = s.CDSCode
+WHERE f.`Charter School (Y/N)` = 1 
+  AND f.`District Name` = 'Fresno County Office of Education'",SELECT T2.Zip FROM frpm AS T1 INNER JOIN schools AS T2 ON T1.CDSCode = T2.CDSCode WHERE T1.`District Name` = 'Fresno County Office of Education' AND T1.`Charter School (Y/N)` = 1,The join is mainly used to test matching rows and then DISTINCT is applied; a semi-join/EXISTS form can avoid duplicate join output.,,taxonomy_rule_reviewed
+efficiency,Others,Constant Folding,47,california_schools,What is the monthly average number of schools that opened in Alameda County under the jurisdiction of the Elementary School District in 1980?,Elementary School District refers to DOC = 52; Monthly average number of schools that opened in 1980 = count(schools that opened in 1980) / 12,"SELECT COUNT(*)/12.0 
+FROM schools 
+WHERE OpenDate >= '1980-01-01' 
+  AND OpenDate < '1981-01-01' 
+  AND County = 'Alameda' 
+  AND DOC = 52","SELECT CAST(COUNT(School) AS REAL) / 12 FROM schools WHERE DOC = 52 AND County = 'Alameda' AND strftime('%Y', OpenDate) = '1980'",The SQL contains constant arithmetic that can be computed once before execution.,,taxonomy_rule_reviewed
+efficiency,Others,Fan-Out Pruning,724,superhero,Please list the superhero names of all the superheroes that have blue eyes and blond hair.,"blue eyes refers to colour = 'Blue' and eye_colour_id = colour.id; blond hair refers to colour = 'Blond' and hair_colour_id = colour.id; super power of ""Agility"" refers to power_name = 'Agility'","SELECT DISTINCT s.superhero_name
+FROM superhero s
+JOIN colour eye_c ON s.eye_colour_id = eye_c.id AND eye_c.colour = 'Blue'
+JOIN colour hair_c ON s.hair_colour_id = hair_c.id AND hair_c.colour = 'Blond'",SELECT T1.superhero_name FROM superhero AS T1 INNER JOIN colour AS T2 ON T1.eye_colour_id = T2.id INNER JOIN colour AS T3 ON T1.hair_colour_id = T3.id WHERE T2.colour = 'Blue' AND T3.colour = 'Blond',"The query joins multiple tables and then removes duplicates with DISTINCT, suggesting join fan-out can be reduced before deduplication.",,taxonomy_rule_reviewed
+efficiency,Others,Predicate Pull-down,3,california_schools,What is the unabbreviated mailing street address of the school with the highest FRPM count for K-12 students?,,"SELECT s.""MailStreet""
+FROM frpm f
+JOIN schools s ON f.""CDSCode"" = s.""CDSCode""
+WHERE f.""FRPM Count (K-12)"" IS NOT NULL
+ORDER BY f.""FRPM Count (K-12)"" DESC
+LIMIT 1",SELECT T2.MailStreet FROM frpm AS T1 INNER JOIN schools AS T2 ON T1.CDSCode = T2.CDSCode ORDER BY T1.`FRPM Count (K-12)` DESC LIMIT 1,The SQL is correct and has filters; pushing predicates closer to base table scans can reduce downstream processing.,,taxonomy_rule_reviewed
+efficiency,Others,SARGable Rewrite,292,toxicology,Identify the atoms belong to the molecule with ID between TR010 to TR050 that contain the element carbon.,"carbon refers to element = 'c'; between TR010 to TR050 refers to substr(molecule_id, 3, 3)>=10 AND substr(molecule_id, 3, 3) <= 50","SELECT atom_id
+FROM atom
+WHERE 
+    element = 'c'
+    AND 
+    CAST(substr(molecule_id, 3, 3) AS INTEGER) >= 10 
+    AND 
+    CAST(substr(molecule_id, 3, 3) AS INTEGER) <= 50;",SELECT T.atom_id FROM atom AS T WHERE T.molecule_id BETWEEN 'TR010' AND 'TR050' AND T.element = 'c',The WHERE clause uses a function or non-index-friendly pattern on a column; rewriting it into a searchable range/equality predicate can improve access.,,taxonomy_rule_reviewed
+efficiency,Subquery Logic,Plan Flattening,245,toxicology,What is the average number of bonds the atoms with the element iodine have?,"atoms with the element iodine refers to element = 'i'; average = DIVIDE(COUND(bond_id), COUNT(atom_id)) where element = 'i'","SELECT AVG(bond_count) 
+FROM (
+    SELECT COUNT(c.bond_id) as bond_count
+    FROM atom a
+    JOIN connected c ON a.atom_id = c.atom_id
+    WHERE a.element = 'i'
+    GROUP BY a.atom_id
+) subquery",SELECT CAST(COUNT(T2.bond_id) AS REAL) / COUNT(T1.atom_id) FROM atom AS T1 INNER JOIN connected AS T2 ON T1.atom_id = T2.atom_id WHERE T1.element = 'i',The derived-table nesting mostly passes rows upward and can be flattened into a simpler single-level query.,,taxonomy_rule_reviewed
+efficiency,Subquery Logic,Subquery Decorrelation,1258,thrombosis_prediction,How many patients with a normal Rhuematoid Factor has a positive measure of degree of coagulation?,"normal Rhuematoid Factor refers TO RA IN('-', '+-'); positive measure of degree of coagulation refers to KCT = '+'; Should compute the number of distinct ones","SELECT COUNT(*) 
+FROM (
+    SELECT DISTINCT L.""ID""
+    FROM ""Laboratory"" L
+    WHERE L.""RA"" IN ('-', '+-')
+    INTERSECT
+    SELECT DISTINCT E.""ID""
+    FROM ""Examination"" E
+    WHERE E.""KCT"" = '+'
+) AS common_patients",SELECT COUNT(DISTINCT T1.ID) FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID INNER JOIN Examination AS T3 ON T3.ID = T2.ID WHERE (T2.RA = '-' OR T2.RA = '+-') AND T3.KCT = '+',The predicted SQL contains a correlated subquery that may be evaluated per outer row; pre-aggregation or join rewriting can avoid repeated execution.,,taxonomy_rule_reviewed
+efficiency,Subquery Logic,Subquery Decoupling,92,financial,List out the no. of districts that have female average salary is more than 6000 but less than 10000?,A11 refers to average salary; Female mapps to gender = 'F',"SELECT COUNT(*) 
+FROM (
+    SELECT d.district_id
+    FROM client c
+    INNER JOIN district d ON c.district_id = d.district_id
+    WHERE c.gender = 'F' 
+      AND d.A11 > 6000 
+      AND d.A11 < 10000
+    GROUP BY d.district_id
+) AS filtered_districts",SELECT COUNT(DISTINCT T2.district_id)  FROM client AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE T1.gender = 'F' AND T2.A11 BETWEEN 6000 AND 10000,"The SQL uses a subquery whose filtering, aggregation, or projection can be separated to make optimization clearer.",,taxonomy_rule_reviewed
+efficiency,Subquery Logic,Subquery Joinify,887,formula_1,Name the races in year 2017 that are not hosted in year 2000.,not hosted means not in;,SELECT name FROM races WHERE year = 2017 AND name NOT IN (SELECT name FROM races WHERE year = 2000),SELECT name FROM races WHERE year = 2017 AND name NOT IN ( SELECT name FROM races WHERE year = 2000 ),The IN/EXISTS subquery can often be represented as a join or semi-join so the optimizer can plan it set-wise.,,taxonomy_rule_reviewed
+efficiency,Timing Strategy,Early Aggregation,128,financial,"List the top nine districts, by descending order, from the highest to the lowest, the number of female account holders.",A2 refers to districts; Female refers to gender = 'F',"SELECT d.A2, COUNT(c.client_id) AS female_count 
+FROM client c 
+JOIN district d ON c.district_id = d.district_id 
+WHERE c.gender = 'F' 
+GROUP BY d.A2 
+ORDER BY COUNT(c.client_id) DESC 
+LIMIT 9","SELECT T2.A2, COUNT(T1.client_id) FROM client AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE T1.gender = 'F' GROUP BY T2.district_id, T2.A2 ORDER BY COUNT(T1.client_id) DESC LIMIT 9",The SQL joins and groups data; aggregating on the relevant key before the join may shrink the joined input.,,taxonomy_rule_reviewed
+efficiency,Timing Strategy,Join Reordering,106,financial,What is the biggest amount of transaction that the client whose card was opened in 1996/10/21 made?,,"SELECT MAX(t.amount) 
+FROM card c
+JOIN disp d ON c.disp_id = d.disp_id
+JOIN account a ON d.account_id = a.account_id
+JOIN trans t ON a.account_id = t.account_id
+WHERE c.issued = '1996-10-21'",SELECT T4.amount FROM card AS T1 JOIN disp AS T2 ON T1.disp_id = T2.disp_id JOIN account AS T3 on T2.account_id = T3.account_id JOIN trans AS T4 on T3.account_id = T4.account_id WHERE T1.issued = '1996-10-21' ORDER BY T4.amount DESC LIMIT 1,The SQL has multiple joins; applying selective filters before or during join ordering can reduce intermediate result size.,,taxonomy_rule_reviewed

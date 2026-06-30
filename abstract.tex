@@ -1,3 +1,9 @@
 \begin{abstract}
-	Pending...
+	Text-to-SQL aims to translate natural language questions into executable SQL queries. 
+	Recent LLM-based systems have improved robustness through workflow-based generation, but they still rely on largely fixed pipelines, use feedback mainly for post-hoc repair, and focus primarily on correctness while overlooking query efficiency. 
+	To address these limitations, we propose \toolname, a meta-cognitive multi-agent Text-to-SQL system that dynamically coordinates evidence construction, SQL generation, process-level reflection, and plan-aware optimization.
+	A Meta-Cognitive Controller continuously observes the task state and database feedback to adapt workflow strategies, reflect on intermediate reasoning states, and perform execution- and plan-aware rewriting.
+	We evaluate \toolname\ on \textsc{BIRD} and \textsc{EESQLBench}. 
+	\toolname\ achieves the best EX of 73.29\% and AR@1 of 67.96\% on \textsc{BIRD}, and the best EX of 67.89\% and AR@1 of 50.59\% on \textsc{EESQLBench}. 
+	These results show the effectiveness of meta-cognitive control in improving the correctness and efficiency of Text-to-SQL systems.
 \end{abstract}

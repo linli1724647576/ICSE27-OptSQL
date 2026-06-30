@@ -20,12 +20,12 @@ Despite these advances, existing Text-to-SQL systems still face three coupled li
 
 \begin{figure}[t]
 	\centering
-	%	\vspace{-3mm}
+	\vspace{-3mm}
 	\includegraphics[width=1\linewidth]{./images/text-to-sql pipline.pdf} 
-	\vspace{-5mm}
+	\vspace{-6mm}
 	\caption{\textbf{Overview of a typical Text-to-SQL pipeline, illustrating the Pre-Generation, Generation, and Post-Generation stages}}
 	\label{fig:text-to-sql-pipeline}
-	\vspace{-4mm}
+	\vspace{-8mm}
 \end{figure}
 
 % 第3-5段，3个Limitations
@@ -54,8 +54,8 @@ In particular, the agent often lacks a controller that continuously tracks wheth
 As a result, early mistakes in schema linking, value grounding, or query planning may propagate into later steps and become cascading hallucinations.
 Moreover, without global process supervision, local repair actions may fix surface-level execution errors while leaving the overall reasoning trajectory insufficiently grounded in the user question and database context.
 
-\textbf{L3: Limited Awareness of Query Efficiency.}
-Most existing Text-to-SQL systems are primarily optimized for correctness: they aim to generate SQL queries whose execution results match the ground-truth answers~\cite{li2023resdsql,li2024codes,li2023graphix,rai2023improving,scholak2021picard,wang2019rat}.
+\textbf{L3: Limited Awareness of Query Efficiency\footnote{Unless otherwise specified, efficiency in this paper refers to the execution efficiency of the generated SQL query, rather than the efficiency of LLM-based query generation.}.}
+Most existing Text-to-SQL systems are primarily optimized for correctness: they aim to generate SQL queries whose execution results match the ground-truth answers~\cite{li2023resdsql,li2024codes,li2023graphix,rai2023improving,scholak2021picard}.
 However, in practical database applications, a semantically correct SQL query is not necessarily efficient.
 Equivalent SQL formulations may lead to very different execution costs due to variations in join orders, predicate placement, or aggregation strategies~\cite{chaudhuri1998overview,leis2015good,wang2022wetune}.
 Yet, current Text-to-SQL systems mainly focus on executability and result consistency, rarely treating query plans, estimated costs, or bottleneck patterns as signals for rewriting generated SQL.
@@ -81,6 +81,20 @@ When further efficiency improvement is needed, the Optimization Loop analyzes qu
 Finally, a Memory Engine and Tool Infrastructure support database grounding, execution analysis, retrieval of reusable optimization experience, and updates to the long-term Auto-Evaluation Knowledge Base (AEKB) after successful rewrites.
 
 % 第八段 evaluation
+\textbf{Evaluation.}
+We evaluate \toolname\ on two complementary benchmarks, \textsc{BIRD}~\cite{li2023can} and \textsc{EESQLBench}~\cite{lin2026cracking}, covering both general cross-domain Text-to-SQL capability and efficiency-oriented SQL generation.
+We compare \toolname\ with fine-tuning-based methods, prompting-based methods, and agentic Text-to-SQL workflows under multiple backbone LLMs.
+The results show that \toolname\ achieves the best or highly competitive performance across correctness- and efficiency-oriented metrics, including EX, VES, CR, AR@0.8, and AR@1 (See Section~\ref{sec:evaluation}).
+In particular, \toolname\ achieves the best EX of 73.29\% and AR@1 of 67.96\% on \textsc{BIRD}, and the best EX of 67.89\% and AR@1 of 50.59\% on \textsc{EESQLBench}.
+These results show that \toolname\ effectively bridges semantic correctness and efficiency, validating the benefits of meta-cognitive control for practical Text-to-SQL systems.
 
 % 第九段 contributions
-
+In summary, this paper makes the following contributions:
+\begin{itemize}[leftmargin=10pt]	
+	
+	\item We identify three key limitations of existing Text-to-SQL systems: limited workflow adaptation, post-hoc reflection, and insufficient awareness of query efficiency.
+	
+	\item We propose \toolname, a meta-cognitive multi-agent Text-to-SQL system that dynamically coordinates evidence construction, SQL generation, process-level reflection, and plan-aware optimization.
+	
+	\item We evaluate \toolname\ on \textsc{BIRD} and \textsc{EESQLBench}, showing consistent improvements over prompting-based, fine-tuning-based, and agentic baselines.
+\end{itemize}

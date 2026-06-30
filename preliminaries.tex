@@ -1,5 +1,13 @@
+\vspace{-2mm}
 \section{Motivation}
 \label{sec:preliminaries}
+% 减少公式之间的间距
+\begingroup
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
+\setlength{\abovedisplayshortskip}{2pt}
+\setlength{\belowdisplayshortskip}{2pt}
+\setlength{\jot}{2pt}
 
 \subsection{Task Formulation}
 Traditional Text-to-SQL aims to translate a NL question $x$ into an executable SQL query $q$ over a database environment $\mathcal{D}$.
@@ -57,7 +65,7 @@ Similarly, if repeated optimization iterations fail to reduce execution cost, th
 This enables closed-loop control over the entire reasoning trajectory.
 
 \textbf{(3) Execution- and Plan-aware Optimization via Feedback-driven Rewriting.}
-Beyond generating semantically correct SQL, the system treats execution efficiency as a objective.
+Beyond generating semantically correct SQL, the system treats execution efficiency as an objective.
 Execution results, query plans, and cost estimates are used as feedback signals to reveal whether an initially correct query may still be inefficient.
 When such feedback indicates potential performance bottlenecks, the system can refine the SQL through feedback-driven rewriting while preserving its intended semantics.
 More importantly, optimization is not treated as an isolated one-shot action.
@@ -65,3 +73,4 @@ The system accumulates validated optimization experience from previous interacti
 In this way, SQL optimization becomes a closed-loop process in which database feedback continuously informs rewriting, validation, and future strategy selection.
 
 
+\endgroup

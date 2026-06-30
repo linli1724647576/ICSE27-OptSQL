@@ -1,6 +1,15 @@
+\vspace{-2mm}
 \section{OptSQL}
 \label{sec:OptSQL}
+% 减少公式之间的间距
+\begingroup
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
+\setlength{\abovedisplayshortskip}{2pt}
+\setlength{\belowdisplayshortskip}{2pt}
+\setlength{\jot}{2pt}
 
+\vspace{-2mm}
 \subsection{Overview}
 Figure~\ref{fig:overview} shows the overall architecture of \toolname.
 Given a NL question and a database environment, \toolname\ aims to generate a SQL query that is both semantically correct and execution-efficient.
@@ -20,7 +29,7 @@ Through these components, \toolname\ continuously observes feedback from the dat
 \begin{figure*}[t]
 	\centering
 	\vspace{-3mm}
-	\includegraphics[width=0.95\linewidth]{./images/overview.pdf} 
+	\includegraphics[width=0.92\linewidth]{./images/overview.pdf} 
 	\vspace{-2mm}
 	\caption{\textbf{Overview of \toolname}}
 	\label{fig:overview}
@@ -31,7 +40,7 @@ The remainder of this section describes each component of \toolname.
 We first present the Generation Phase for constructing an initial SQL query (Section~\ref{subsec: Generation Phase}), followed by the Optimization Loop for execution- and plan-aware rewriting (Section~\ref{subsec: Optimization Loop}).
 We then introduce the Meta-Cognitive Controller that orchestrates these processes through strategy selection, monitoring, and self-reflection (Section~\ref{subsec: Meta-Cognitive Controller}).
 Finally, we describe the Memory Engine and Tool Infrastructure that support retrieval, experience accumulation, and database feedback (Section~\ref{subsec: Memory Engine and Tool Infrastructure}).
-Due to space limitations, we will release a detailed case study in our GitHub repository to illustrate how \toolname realizes its key designs. \lin{add a url}
+Due to space limitations, we also release a detailed case study in our GitHub repository~\cite{optsql_case_study} to illustrate how \toolname\ realizes its key designs.
 
 \subsection{Generation Phase}
 \label{subsec: Generation Phase}
@@ -145,7 +154,7 @@ Instead, they serve as evidence for the SQL Rewriter Agent, which decides how to
 
 \begin{table*}[t]
 	\centering
-	\vspace{-2mm}
+	\vspace{-3mm}
 	\caption{\textbf{Representative optimization patterns used by the Explain Analyzer Agent.}}
 	\vspace{-2mm}
 	\label{tab:explain-analyzer}
@@ -194,7 +203,7 @@ Instead, they serve as evidence for the SQL Rewriter Agent, which decides how to
 		& Applied when ordering semantics are unchanged. \\
 		\bottomrule
 	\end{tabular}
-	\vspace{-5mm}
+	\vspace{-7mm}
 \end{table*}
 
 \textbf{SQL Rewriter Agent.}
@@ -217,6 +226,7 @@ The controller may then ask the SQL Rewriter Agent to retry with the original SQ
 If the rewritten SQL preserves semantics but does not reduce cost, the controller may retry with another rewrite direction, retrieve additional cases from the Memory Engine, or terminate the optimization loop when further improvement is unlikely.
 Only rewrites that pass both semantic consistency and cost-improvement checks are accepted as optimized outputs.
 
+\vspace{-2mm}
 \subsection{Meta-Cognitive Controller}
 \label{subsec: Meta-Cognitive Controller}
 
@@ -338,7 +348,7 @@ It consists of three groups of tools:
 	\item \textit{Database Context Grounding Engine.}
 	This engine supports schema and value evidence construction for the Evidence-guided Schema Filter Agent.
 	It provides operations for schema linking, value verification, semantic value matching, distinct-value inspection, data sampling, null/type analysis, and relational completion.
-	These tools help the system ground natural language expressions into relevant tables, columns, values, and join paths.
+	These tools help the system ground NL expressions into relevant tables, columns, values, and join paths.
 	
 	\item \textit{SQL Execution and Analysis Engine.}
 	This engine supports execution-aware optimization for the Optimization Loop.
@@ -357,3 +367,5 @@ Together, these tools allow \toolname\ to ground reasoning in concrete database 
 
 %\section{Case Study}
 %\label{sec:case study}
+
+\endgroup
