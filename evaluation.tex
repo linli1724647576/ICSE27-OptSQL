@@ -181,7 +181,7 @@ These results show that \toolname\ is robust across different backbone LLMs and 
 
 \textbf{Statistical Significance.}
 We conduct paired analysis between \toolname\ and the strongest baseline under the same backbone LLMs.
-For EX and AR@1, we use McNemar's test over paired success outcomes; for VES and CR score, we use the Wilcoxon signed-rank test over paired scores.
+For EX and AR@1, we use McNemar's test over paired success outcomes; for VES and CR scores, we use the Wilcoxon signed-rank test over paired scores.
 The main comparisons are statistically significant ($p < 0.001$), and the 95\% bootstrap confidence intervals are consistently positive, with a medium effect size of approximately $\delta=0.52$.
 
 \textbf{Token Consumption.}
@@ -400,7 +400,7 @@ We compare the full \toolname\ with four ablated variants:
 %	\item \textbf{w/o Adaptation}: replaces the Meta-Cognitive Controller with a fixed workflow.
 	\item \textbf{w/o Adaptation}: disables the adaptive strategy-selection ability of the Meta-Cognitive Controller and uses a fixed workflow for all tasks.
 	\item \textbf{w/o Reflection}: removes process-level reflection and only keeps final validation and repair.
-	\item \textbf{w/o Optimization}: disables the Optimization Loop and directly outputs the SQL after generation phase.
+	\item \textbf{w/o Optimization}: disables the Optimization Loop and directly outputs the SQL after Generation Phase.
 	\item \textbf{w/o AEKB}: disables AEKB-based historical rewrite-case retrieval and only uses current query plans and static optimization rules.
 \end{itemize}
 

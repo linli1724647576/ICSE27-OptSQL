@@ -12,7 +12,7 @@
 \vspace{-2mm}
 \subsection{Overview}
 Figure~\ref{fig:overview} shows the overall architecture of \toolname.
-Given a NL question and a database environment, \toolname\ aims to generate a SQL query that is both semantically correct and execution-efficient.
+Given an NL question and a database environment, \toolname\ aims to generate a SQL query that is both semantically correct and execution-efficient.
 Instead of treating Text-to-SQL as a fixed pipeline, \toolname\ formulates it as a feedback-driven process coordinated by a Meta-Cognitive Controller.
 %
 The Meta-Cognitive Controller supervises the entire workflow.
@@ -23,7 +23,7 @@ This loop consists of an Explain Analyzer Agent, a SQL Rewriter Agent, and a Val
 %
 \toolname\ is further supported by a Memory Engine and a Tool Infrastructure.
 The Memory Engine maintains task-level working memory and reusable optimization knowledge, including expert rules and validated historical rewrite cases.
-The Tool Infrastructure provides database grounding, SQL execution and analysis and RAG-based retrieval.
+The Tool Infrastructure provides database grounding, SQL execution and analysis, and RAG-based retrieval.
 Through these components, \toolname\ continuously observes feedback from the database environment, reflects on its intermediate decisions, and updates its optimization experience.
 
 \begin{figure*}[t]
@@ -96,7 +96,7 @@ The agent supports the following SQL generation strategies:
 
 \begin{itemize}[leftmargin=10pt]
 	\item \textit{Skeleton-based generation} follows a top-down construction process.
-	It first analyzes the required SQL components, such as selection, filtering, joining, grouping and ordering, then sketches a SQL skeleton, and finally fills in concrete tables, columns, predicates, and functions.
+	It first analyzes the required SQL components, such as selection, filtering, joining, grouping, and ordering, then sketches a SQL skeleton, and finally fills in concrete tables, columns, predicates, and functions.
 	This strategy is useful for queries that require clear structural planning.
 	
 	\item \textit{ICL-based generation} leverages retrieved demonstrations to guide SQL construction.
@@ -208,7 +208,7 @@ Instead, they serve as evidence for the SQL Rewriter Agent, which decides how to
 
 \textbf{SQL Rewriter Agent.}
 The SQL Rewriter Agent transforms the current SQL query into a potentially more efficient variant based on the suggestions produced by the Explain Analyzer Agent.
-Its input includes the original SQL, the detected bottleneck signals, the corresponding rewrite directions, the applicability conditions and optionally retrieved rewrite cases from the Memory Engine.
+Its input includes the original SQL, the detected bottleneck signals, the corresponding rewrite directions, the applicability conditions, and optionally retrieved rewrite cases from the Memory Engine.
 The rewriter does not freely optimize the query; instead, it is constrained to apply rewrite actions that are supported by the available evidence.
 %For low-risk cases, such as redundant projection, the rewriter may directly replace \texttt{SELECT *} with the columns required by the question or the current SQL.
 %For more semantics-sensitive cases, such as correlated-subquery rewriting, pre-aggregation before joins, or rewriting \texttt{OR} predicates to \texttt{UNION}, the rewriter relies on retrieved templates, explicit applicability conditions, or strong structural evidence before attempting the transformation.

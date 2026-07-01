@@ -10,7 +10,7 @@
 \setlength{\jot}{2pt}
 
 \subsection{Task Formulation}
-Traditional Text-to-SQL aims to translate a NL question $x$ into an executable SQL query $q$ over a database environment $\mathcal{D}$.
+Traditional Text-to-SQL aims to translate an NL question $x$ into an executable SQL query $q$ over a database environment $\mathcal{D}$.
 Given a ground-truth query $q^*$, the standard objective is to generate a query whose execution result matches that of $q^*$:
 \[
 f_\theta(x, \mathcal{D}) \rightarrow q,
@@ -23,7 +23,7 @@ where $f_\theta$ denotes a Text-to-SQL system parameterized by $\theta$, $\mathc
 However, this formulation focuses mainly on semantic correctness and does not explicitly consider query efficiency.
 In practice, multiple semantically equivalent SQL queries may produce the same result but incur substantially different execution costs due to join order, predicate placement, aggregation strategy, or index utilization.
 We therefore formulate \textbf{Efficiency-Oriented Text-to-SQL}, where the goal is to generate a query that is both semantically correct and efficient.
-Given a NL question $x$ and a database environment $\mathcal{D}$, the goal is to generate a SQL query $q_{\text{opt}}$ satisfying:
+Given an NL question $x$ and a database environment $\mathcal{D}$, the goal is to generate a SQL query $q_{\text{opt}}$ satisfying:
 \[
 \begin{aligned}
 	q_{\mathrm{opt}}
@@ -34,7 +34,7 @@ Given a NL question $x$ and a database environment $\mathcal{D}$, the goal is to
 \end{aligned}
 \]
 where $\mathcal{Q}_{\mathrm{corr}}(x,\mathcal{D})$ denotes the subset of candidates that are semantically correct with respect to $q^*$.
-$\text{Cost}(q, \mathcal{S})$ represents the estimated or actual execution cost of query $q$ on $\mathcal{S}$.
+$\text{Cost}(q, \mathcal{D})$ represents the estimated or actual execution cost of query $q$ on $\mathcal{D}$.
 Intuitively, the model should not only ensure that $q_{\text{opt}}$ yields correct results but also that it achieves minimal execution time or resource consumption under the same semantic constraints. 
 
 \subsection{Design Objective}
