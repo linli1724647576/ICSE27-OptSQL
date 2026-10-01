@@ -1,4 +1,4 @@
-\vspace{-3mm}
+%\vspace{-3mm}
 \section{Experiment}
 \label{sec:evaluation}
 
@@ -45,7 +45,7 @@
 % 重复运行5次?
 
 
-\vspace{-2mm}
+%\vspace{-2mm}
 \subsection{Experimental Setup}
 \textbf{Datasets.}
 We evaluate \toolname\ on two complementary benchmarks: \textbf{\textsc{BIRD}}~\cite{li2023can} and \textbf{\textsc{EESQLBench}}~\cite{lin2026cracking}.
@@ -86,6 +86,7 @@ It evaluates whether the generated SQL produces the correct result, regardless o
 \]
 where $T(q,S)$ denotes execution time.
 VES rewards generated SQLs that are both correct and fast, but it may be affected by runtime noise.
+\revision{We report VES multiplied by 100; it can exceed 100 because correct generated queries may execute faster than the reference queries.}
 
 \textbf{\textit{Cost Reachability (CR)}}~\cite{lin2026cracking} measures how close a generated SQL is to the expert-optimized SQL in terms of plan-level cost.
 For each semantically correct instance, we define the instance-level cost ratio:
@@ -119,7 +120,13 @@ A higher CR indicates that the generated SQL is closer to expert-level efficienc
 We report AR@1 and AR@0.8.
 AR@1 counts correct queries whose cost is no higher than the expert SQL, while AR@0.8 allows the generated SQL to be at most $1.25\times$ the expert cost.
 
+\revision{Following the evaluation design of \textsc{EESQLBench}~\cite{lin2026cracking}, we assess query efficiency relative to expert-optimized canonical SQL using CR and AR.
+The expert-optimized canonical SQL serves as an efficiency reference, not a guaranteed global optimum or a lower bound on execution cost.
+%Accordingly, $\mathrm{CR}_i>1$ indicates that a correct generated query outperforms the reference under the chosen cost measure, while AR@1 measures reference-level cost attainment rather than global optimality.
+}
+
 \textbf{Baselines.}
+\revision{Our baseline selection prioritizes state-of-the-art methods that demonstrated strong performance on the \textsc{BIRD} leaderboard and had publicly available implementations or model checkpoints at the time of our experiments to support reproducible evaluation.}
 We compare \toolname\ with three categories of representative Text-to-SQL methods:
 
 \begin{itemize}[leftmargin=10pt]
@@ -147,6 +154,9 @@ Specifically, we use three representative backbones: \textsc{Qwen3-Coder-30B-A3B
 We perform our experiments on a workstation with an 8-core 11th Gen Intel(R) Core(TM) i7-11700 @ 2.50GHz processor, 64GB of memory, and NVIDIA RTX A6000 with 48GB of VRAM running Ubuntu 22.04.1 LTS.
 For open-source LLMs, we deploy a local API server based on vLLM~\cite{kwon2023efficient} which is a unified library for LLM serving and inference.
 For GPT-5.4, we query the respective official APIs with matching decoding settings.
+\revision{All experiments, including those for \toolname\ and every baseline, are repeated in three complete end-to-end runs, and we report the mean of each metric across the three runs.}
+\revision{Each run regenerates all LLM outputs with fixed model versions and decoding settings.}
+\revision{To reduce AEKB-induced dependence on a particular test order, we independently shuffle the evaluation instances for each run, use the same order across methods within that run, and reset AEKB to the same initial state before each run.}
 
 \subsection{Performance Comparison}
 % CR 越高， VES 也越高
@@ -178,6 +188,8 @@ On the more complex and efficiency-oriented \textsc{EESQLBench}, the advantage o
 Under the same backbone LLMs, \toolname\ improves EX over \textsc{DeepEye} by 2.53, 1.12, and 3.39 percentage points, and improves AR@1 by 4.40, 1.98, and 0.58 percentage points under \textsc{Qwen3-Coder}, \textsc{DeepSeek-v4}, and \textsc{GPT-5.4}, respectively.
 The gains are larger on efficiency-oriented metrics, where \toolname\ improves VES by 18.05, 3.61, and 38.49 points over \textsc{DeepEye} under the same backbones.
 These results show that \toolname\ is robust across different backbone LLMs and significantly outperforms prompting-based, fine-tuning-based, and agentic baselines in both correctness and efficiency-oriented performance.
+\revision{Although some gains are modest, we view them as meaningful incremental progress on an extensively studied task, consistent with the small but measurable contributions of individual workflow components reported in recent Text-to-SQL systems~\cite{li2026deepeye,pourreza2024chasesql}.}
+
 
 \textbf{Statistical Significance.}
 We conduct paired analysis between \toolname\ and the strongest baseline under the same backbone LLMs.
@@ -201,6 +213,7 @@ This shows the advantage of adaptive workflow control: \toolname\ avoids applyin
 	\footnotesize
 	\setlength{\tabcolsep}{6.0pt}
 	\renewcommand{\arraystretch}{0.85}
+	\resizebox{\textwidth}{!}{%
 	\begin{tabular}{llcccccccccc}
 		\toprule
 		\multirow{2}{*}{\textbf{Method}}
@@ -283,7 +296,8 @@ This shows the advantage of adaptive workflow control: \toolname\ avoids applyin
 		
 		\bottomrule
 	\end{tabular}
-	\vspace{-4mm}
+	}
+	\vspace{-2mm}
 	
 \end{table*}
 
@@ -397,11 +411,11 @@ We report EX to measure semantic correctness and AR@1 to measure the fraction of
 We compare the full \toolname\ with four ablated variants:
 
 \begin{itemize}[leftmargin=10pt]
-%	\item \textbf{w/o Adaptation}: replaces the Meta-Cognitive Controller with a fixed workflow.
-	\item \textbf{w/o Adaptation}: disables the adaptive strategy-selection ability of the Meta-Cognitive Controller and uses a fixed workflow for all tasks.
-	\item \textbf{w/o Reflection}: removes process-level reflection and only keeps final validation and repair.
-	\item \textbf{w/o Optimization}: disables the Optimization Loop and directly outputs the SQL after Generation Phase.
-	\item \textbf{w/o AEKB}: disables AEKB-based historical rewrite-case retrieval and only uses current query plans and static optimization rules.
+	\item \revision{\textbf{w/o Adaptation}: replaces the controller's state-dependent strategy selection with the same predefined workflow for all tasks.
+	The choice and ordering of strategies are fixed rather than adapted to task context or intermediate feedback; SQL generation, local repair, and rewrite validation remain available within this workflow.}
+	\item \revision{\textbf{w/o Reflection}: removes the controller's explicit process-level reflection record $r$, while retaining execution-error repair within the SQL Builder and the Validator's execution, consistency, and cost checks.}
+	\item \revision{\textbf{w/o Optimization}: returns the initial query selected by the SQL Builder at the end of the Generation Phase.}
+	\item \revision{\textbf{w/o AEKB}: disables retrieval of historical rewrite cases from the AEKB.}
 \end{itemize}
 
 \begin{table}[t]
@@ -409,7 +423,7 @@ We compare the full \toolname\ with four ablated variants:
 %	\vspace{-2mm}
 	\caption{\textbf{Ablation study on \textsc{BIRD} and \textsc{EESQLBench}.}
 		We use \textsc{GPT-5.4} as the backbone LLM and report EX and AR@1.}
-	\vspace{-2mm}
+	\vspace{-3mm}
 	\label{tab}
 	\footnotesize
 	\setlength{\tabcolsep}{5.8pt}
@@ -431,7 +445,7 @@ We compare the full \toolname\ with four ablated variants:
 		w/o AEKB & 69.98 & 59.60 & 67.89 & 38.65 \\
 		\bottomrule
 	\end{tabular}
-	\vspace{-6mm}
+	\vspace{-4mm}
 \end{table}
 
 Table~\ref{tab} shows that all core components contribute to the final performance of \toolname.
@@ -443,10 +457,11 @@ The large AR@1 drop on \textsc{EESQLBench}, from 43.89\% to 25.05\% without opti
 
 To better understand the limitations of \toolname, we conduct a qualitative error analysis from both correctness and efficiency perspectives.
 Following a standard open-coding protocol, three annotators first independently propose fine-grained labels for recurring error patterns, and then iteratively compare, refine, and merge overlapping labels through discussion.
+
 For \textbf{correctness analysis}, we randomly sample 100 cases judged as incorrect by EX and manually inspect the question, evidence, predicted SQL, and gold SQL.
 After resolving disagreements, we consolidate the errors into two high-level groups and 16 fine-grained labels: intent-violating hallucination (87\%), where the predicted SQL changes the user intent, and potential gold error (13\%), where the reference SQL is likely incomplete, ambiguous, or inconsistent with the question.
 The most representative fine-grained categories are join logic hallucination (21\%) and DISTINCT error (15\%), suggesting that join-path reasoning and duplicate semantics remain major sources of correctness failures.
-%
+
 For \textbf{inefficiency analysis}, we randomly sample 100 semantically correct cases with $\mathrm{CR}_i < 1.0$ and compare the generated SQL, expert SQL, and their execution plans.
 Following the same coding protocol, we consolidate recurring inefficiency patterns into five high-level themes and 23 fine-grained labels: join logic (58\%), subquery logic (5\%), timing strategy (5\%), access strategy (4\%), and others (28\%).
 The dominant fine-grained causes are redundant lookup joins (48\%) and predicate pull-down opportunities (23\%), indicating that many remaining inefficiencies come from conservative join construction and missed filter-placement rewrites.

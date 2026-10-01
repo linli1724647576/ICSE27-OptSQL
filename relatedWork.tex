@@ -12,7 +12,7 @@
 %
 %\textbf{Prompting-based Text-to-SQL Methods.}
 %A major line of work adapts general-purpose LLMs to Text-to-SQL through carefully designed prompting strategies, without updating model parameters.
-%These methods mainly improve SQL generation by organizing database schemas, sampled contents, task instructions, demonstrations, and decomposition hints into effective prompts~\cite{gao2023text,li2023can,sun2023sql,pourreza2023din}.
+%These methods mainly improve SQL generation by organizing database schemas, sampled contents, task instructions, demonstrations, and decomposition hints into effective prompts~\cite{gao2023text,li2023can,sun2023sqlpalm,pourreza2023din}.
 %Subsequent studies further enhance prompting with dynamic few-shot selection, self-correction, consistency alignment, and retrieval-augmented evidence construction~\cite{xie2025opensearchsql,ramachandran2024textsqlcalibration,talaei2024chess,pourreza2024chasesql,wang2025linkalign,maamari2024death}.
 %These methods are attractive because they are training-free and can leverage increasingly strong backbone LLMs, but their effectiveness often depends on prompt design, retrieved evidence quality, and the capability of the underlying model.
 %
@@ -34,7 +34,7 @@
 \textbf{Fine-tuned and Prompting-based Text-to-SQL Methods.}
 Fine-tuned methods adapt or train models with supervised fine-tuning, synthetic data, or reinforcement learning~\cite{sun2023sqlpalm,li2024codes,pourreza2024dtssql,chen2024opensql,thorpe2024dubo,ma2025sqlr1,liu2025xiyansql,li2025omnisql,pourreza2025reasoningsql,yao2025arctictext2sql}.
 However, these methods depend heavily on training data quality and coverage, and may generalize poorly to out-of-domain or complex real-world databases~\cite{li2026deepeye}.
-Prompting-based methods adapt LLMs without updating parameters by organizing schemas, sampled contents, demonstrations, decomposition hints, and retrieved evidence into effective prompts~\cite{gao2023text,li2023can,sun2023sql,pourreza2023din,xie2025opensearchsql,ramachandran2024textsqlcalibration,talaei2024chess,pourreza2024chasesql,wang2025linkalign,maamari2024death}.
+Prompting-based methods adapt LLMs without updating parameters by organizing schemas, sampled contents, demonstrations, decomposition hints, and retrieved evidence into effective prompts~\cite{gao2023text,li2023can,sun2023sqlpalm,pourreza2023din,xie2025opensearchsql,ramachandran2024textsqlcalibration,talaei2024chess,pourreza2024chasesql,wang2025linkalign,maamari2024death}.
 Although these methods are training-free, their performance remains sensitive to prompt design, evidence quality, and backbone model capability.
 
 \textbf{Agentic Text-to-SQL Workflows.}

@@ -37,6 +37,14 @@ where $\mathcal{Q}_{\mathrm{corr}}(x,\mathcal{D})$ denotes the subset of candida
 $\text{Cost}(q, \mathcal{D})$ represents the estimated or actual execution cost of query $q$ on $\mathcal{D}$.
 Intuitively, the model should not only ensure that $q_{\text{opt}}$ yields correct results but also that it achieves minimal execution time or resource consumption under the same semantic constraints. 
 
+\revision{
+	The minimization above specifies the ideal task objective.
+	The reference query $q^*$ supplies the expected result for correctness evaluation and is not assumed to be a minimizer of $\text{Cost}$.
+	Our research question is whether and how adaptive agent orchestration guided by execution and query-plan feedback can improve the efficiency of generated SQL while preserving correctness.
+	Operationally, \toolname\ explores and validates a finite set of candidates, and its effectiveness is assessed through empirical improvements over baseline systems and comparisons with reference queries, without claiming exhaustive search or global optimality.
+}
+
+\vspace{-2mm}
 \subsection{Design Objective}
 Existing Text-to-SQL systems are typically static pipelines that decompose SQL construction into pre-defined stages, including pre-generation, generation, and post-generation validation. 
 While such designs improve robustness compared to single-pass generation, they lack the ability to dynamically adapt their reasoning process to different database environments, query difficulties, and intermediate execution feedback.
@@ -68,7 +76,7 @@ This enables closed-loop control over the entire reasoning trajectory.
 Beyond generating semantically correct SQL, the system treats execution efficiency as an objective.
 Execution results, query plans, and cost estimates are used as feedback signals to reveal whether an initially correct query may still be inefficient.
 When such feedback indicates potential performance bottlenecks, the system can refine the SQL through feedback-driven rewriting while preserving its intended semantics.
-More importantly, optimization is not treated as an isolated one-shot action.
+Optimization is not treated as an isolated one-shot action.
 The system accumulates validated optimization experience from previous interactions with the database environment, enabling future decisions to be guided not only by static rules but also by reusable execution-aware experience.
 In this way, SQL optimization becomes a closed-loop process in which database feedback continuously informs rewriting, validation, and future strategy selection.
 

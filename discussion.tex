@@ -1,9 +1,22 @@
-%\section{Discussion}
-%\label{sec:discussion}
+\section{Discussion}
+\label{sec:discussion}
+
+\revision{\textbf{Practical Impact.}
+Following \textsc{EESQLBench}~\cite{lin2026cracking}, we evaluate the correctness and execution efficiency of generated SQL, while recognizing that generation and optimization overhead also matters for practical deployment.
+These costs arise at different stages: SQL retained for subsequent use need not be regenerated or reoptimized before every execution.
+BayesQO~\cite{tao2025offline} motivates investing additional offline optimization effort in recurring analytical queries, where even modest improvements in execution time can accumulate over repeated use.
+Similarly, GenRewrite~\cite{liu2025genrewrite} targets recurring workloads, including business-intelligence dashboards, reporting, and ETL, where the overhead of LLM-based rewriting can be amortized by reusing optimized SQL.
+% These studies suggest a practical deployment setting for \toolname: generating and validating efficient SQL for recurring business tasks, provided that the queries remain applicable and their efficiency benefits persist as data evolves.
+% For inexpensive, one-off queries, however, additional reasoning and optimization may outweigh execution-time savings, making total response latency a more immediate concern.
+% Our results therefore establish improvements in generated-query quality, while the extent to which these gains offset \toolname's own overhead remains dependent on the workload and is not quantified by the current evaluation.
+Accordingly, \toolname\ primarily targets database-backed business intelligence and analytics applications in which generated SQL is retained and repeatedly executed for dashboard refreshes, scheduled reports, and recurring data-processing tasks.
+In these workloads, semantically correct but inefficient SQL can create recurring bottlenecks, with unnecessary database work accumulating across executions and increasing latency and resource consumption.
+By combining correctness checks with execution-plan feedback and query rewriting, \toolname\ aims to identify and reduce these inefficiencies under realistic schema and workload settings, addressing performance issues that correctness-only Text-to-SQL evaluation can overlook~\cite{lin2026cracking}.}
+
 
 % Contribution of EX. 和其他 Agent 相比，EX 的提升点在哪里
 % Contribution of CR. 接入其他Agent后，CR是否可以提升
-\vspace{-1mm}
+%\vspace{-1mm}
 \section{Threats to Validity}
 
 %\textbf{Internal threat}
@@ -11,7 +24,7 @@
 %Although EX is widely used in Text-to-SQL evaluation, it may not always faithfully reflect semantic correctness, since the gold SQL can be imperfect, or an incorrect predicted SQL may coincidentally produce the same execution result as the gold SQL.
 %To assess this risk, we randomly inspected 100 evaluated cases and found that 95 cases were correctly judged by EX, suggesting that the impact of this issue is limited in our evaluation.
 
-%\textbf{Internal Threats.}
+\textbf{Internal Threats.}
 The main internal threat lies in the use of EX as the primary correctness metric.
 Although EX is widely used in Text-to-SQL evaluation, it may not always faithfully reflect semantic correctness, since the gold SQL can be imperfect, or an incorrect predicted SQL may coincidentally produce the same execution result as the gold SQL.
 To assess this risk, we randomly inspected 100 evaluated cases and found that 95 cases were correctly judged by EX, suggesting that the impact of this issue is limited in our evaluation.
@@ -21,8 +34,14 @@ To assess this risk, we randomly inspected 100 evaluated cases and found that 95
 %To mitigate this risk, we additionally evaluate \toolname\ on \textsc{EESQLBench}, which was released after the expected knowledge cutoff of the selected models and therefore substantially reduces the likelihood of direct benchmark leakage.
 %This additional benchmark helps assess the generality and efficiency-oriented capability of \toolname\ under a less leakage-prone setting.
 %
-%\textbf{External Threats.}
+
+\textbf{External Threats.}
 External threats concern the potential data leakage of public benchmarks.
 Since some backbone LLMs may have been exposed to \textsc{BIRD} during pretraining, their performance on \textsc{BIRD} may not fully reflect generalization to unseen tasks.
 To mitigate this risk, we additionally evaluate \toolname\ on \textsc{EESQLBench}, which was released after the expected knowledge cutoff of the selected models and thus reduces the likelihood of direct benchmark leakage.
 This additional benchmark helps assess the generality and efficiency-oriented capability of \toolname\ under a less leakage-prone setting.
+
+\revision{\textbf{Construct Validity.}
+Expert-optimized reference queries may retain optimization opportunities, so their quality affects the interpretation of reference-relative efficiency scores and attainment thresholds.
+In particular, reaching or exceeding an expert reference does not establish that a generated query has minimum execution time or cost among all correct alternatives.
+Our cost-based metrics also capture only the selected aspect of execution efficiency: Total Scanned Rows does not account for every source of latency, so we interpret it alongside runtime-based VES rather than as an exact substitute for execution time.}

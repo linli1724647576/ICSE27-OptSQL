@@ -9,7 +9,7 @@
 \setlength{\belowdisplayshortskip}{2pt}
 \setlength{\jot}{2pt}
 
-\vspace{-2mm}
+%\vspace{-2mm}
 \subsection{Overview}
 Figure~\ref{fig:overview} shows the overall architecture of \toolname.
 Given an NL question and a database environment, \toolname\ aims to generate a SQL query that is both semantically correct and execution-efficient.
@@ -28,9 +28,9 @@ Through these components, \toolname\ continuously observes feedback from the dat
 
 \begin{figure*}[t]
 	\centering
-	\vspace{-3mm}
+	\vspace{-1mm}
 	\includegraphics[width=0.92\linewidth]{./images/overview.pdf} 
-	\vspace{-2mm}
+	\vspace{-3mm}
 	\caption{\textbf{Overview of \toolname}}
 	\label{fig:overview}
 	\vspace{-6mm}
@@ -203,7 +203,7 @@ Instead, they serve as evidence for the SQL Rewriter Agent, which decides how to
 		& Applied when ordering semantics are unchanged. \\
 		\bottomrule
 	\end{tabular}
-	\vspace{-7mm}
+	\vspace{-5mm}
 \end{table*}
 
 \textbf{SQL Rewriter Agent.}
@@ -229,103 +229,162 @@ Only rewrites that pass both semantic consistency and cost-improvement checks ar
 \vspace{-2mm}
 \subsection{Meta-Cognitive Controller}
 \label{subsec: Meta-Cognitive Controller}
+The Meta-Cognitive Controller is the central coordination module of OPTSQL. It maintains a global task state, selects which agent capabilities should be invoked, monitors intermediate feedback, and decides whether the system should continue, switch strategy, or terminate.
+\revision{Algorithm~\ref{alg:meta-controller} formalizes the Meta-Cognitive Controller as a state-based control loop shared by generation and optimization.
+The workflow defines the available agent capabilities and their execution rules; within this workflow, the LLM interprets feedback and chooses what to do next.
+We follow the algorithm below from state initialization through action selection to validation and termination.}
 
-The Meta-Cognitive Controller is the central coordination module of \toolname.
-It maintains a global task state, selects which agent capabilities should be invoked, monitors intermediate feedback, and decides whether the system should continue, switch strategy, or terminate.
-In this sense, the controller provides process-level regulation over the whole Text-to-SQL workflow.
+\begin{algorithm}[t]
+\renewcommand{\revision}[1]{#1}
+\color{black}
+\small
+\caption{\revision{Meta-cognitive control of generation and optional optimization}}
+\label{alg:meta-controller}
+\begin{algorithmic}[1]
+\algrenewcommand{\algorithmiccomment}[1]{\hfill\textcolor{blue}{//~#1}}
+\Require \revision{Question $x$, database $\mathcal{D}$, AEKB $K$}
+\Ensure \revision{Selected SQL $q$, or $\bot$ if generation fails}
+\Statex \revision{\textcolor{blue}{// Initialize the State}}
+\State \revision{Initialize working-memory state $s$ from $(x,\mathcal{D})$; $q\gets\bot$}\label{algmc:init}
+\Statex \revision{\textcolor{blue}{// Set Up the Current Phase}}
+\For{\revision{$p\in[\text{generation},\text{optimization}]$}}\label{algmc:phase}
+    \State \revision{If $p=\text{optimization}$ and $\operatorname{Optimize}_{\mathrm{LLM}}(s)=\mathrm{false}$, \textbf{return} $q$}\label{algmc:gate}
+    \State \revision{$U\gets\operatorname{Catalog}(p)$}\label{algmc:catalog}\Comment{\revision{$U$: remaining action identifiers}}
+    \Statex \revision{\textcolor{blue}{// Observe Signals and Identify Eligible Actions}}
+    \While{\revision{$U\ne\varnothing$}}\label{algmc:loop}
+        \State \revision{$\sigma\gets\operatorname{Signals}(s)$}\label{algmc:signals}\Comment{\revision{$\sigma$: Boolean flags for grounding, candidate, plan, and rewrite issues}}
+        \State \revision{$A\gets\operatorname{Eligible}(U,s)\cup\operatorname{AllowedStop}(p,s)$}\label{algmc:eligible}\Comment{\revision{$A$: eligible actions, including a permitted stop}}
+        \If{\revision{$A=\varnothing$}}\label{algmc:empty}
+            \State \revision{\textbf{break}}\label{algmc:emptybreak}
+        \EndIf
+        \Statex \revision{\textcolor{blue}{// Reflect, Select, and Adapt}}
+        \State \revision{$r\gets\operatorname{Reflect}_{\mathrm{LLM}}(s,\sigma)$ if $\operatorname{NeedsReflection}(\sigma)$, else $\varnothing$}\label{algmc:reflect}\Comment{\revision{$r$: issue, supporting evidence, and next-step constraint}}
+        \State \revision{$\tilde a\gets\operatorname{Propose}_{\mathrm{LLM}}(s,\sigma,r,A)$}\label{algmc:propose}\Comment{\revision{$\tilde a$: proposed action identifier and arguments}}
+        \State \revision{$a\gets\operatorname{CheckOrFallback}(\tilde a,A,s,p)$}\label{algmc:guard}\Comment{\revision{$a$: checked proposal or valid fallback}}
+        \If{\revision{$a=\textsc{Stop}$}}\label{algmc:stop}
+            \State \revision{\textbf{break}}\label{algmc:stopbreak}
+        \EndIf
+        \State \revision{$U\gets U\setminus\{\operatorname{id}(a)\}$; $o\gets\operatorname{Execute}(a,s,K)$}\label{algmc:execute}\Comment{\revision{$o$: agent report containing outputs, feedback, or errors}}
+        \Statex \revision{\textcolor{blue}{// Validate the Output and Update the State}}
+        \If{\revision{$a$ is a rewrite action and $o.\mathrm{sql}\ne\bot$}}
+            \State \revision{$q'\gets o.\mathrm{sql}$}\label{algmc:extract}
+            \State \revision{$v\gets\operatorname{Validate}(q,q',\mathcal{D})$}\label{algmc:validate}\Comment{\revision{$v$: execution, consistency, and cost-check results}}
+            \If{\revision{$v.\mathrm{success}\land v.\mathrm{consistent}\land v.\mathrm{costImproved}$}}\label{algmc:accept}
+                \State \revision{$K\gets\operatorname{StoreValidatedCase}(K,q,q',v)$}\label{algmc:store}
+                \State \revision{$q\gets q'$; $o.P\gets\operatorname{Analyze}(q,\mathcal{D})$}\label{algmc:refresh}
+            \EndIf
+            \State \revision{$o.v\gets v$; attach the acceptance decision to $o$}\label{algmc:feedback}
+        \EndIf
+        \State \revision{$s\gets\operatorname{Update}(s,a,\sigma,r,o)$}\label{algmc:update}
+    \EndWhile
+    \Statex \revision{\textcolor{blue}{// Complete the Phase and Return the Query}}
+    \If{\revision{$p=\text{generation}$}}
+        \State \revision{$q\gets\operatorname{BuilderSelect}(s.Q)$}\label{algmc:select}
+        \If{\revision{$q=\bot$}}
+            \State \revision{\textbf{return} $\bot$}
+        \EndIf
+    \EndIf
+\EndFor
+\State \revision{\textbf{return} $q$}\label{algmc:return}
+\end{algorithmic}
+\end{algorithm}
 
-The task state is initialized from the input question and database environment, and is further enriched with relevant knowledge retrieved from the AEKB, which serves as long-term memory for reusable optimization experience.
-During execution, this task-level state is maintained in working memory and updated after each agent action using structured reports from the Generation Phase and the Optimization Loop.
-Based on the updated working-memory snapshot, the controller identifies high-level control signals, such as whether the current evidence is sufficient, whether candidate SQLs are stable, whether additional generation strategies are needed, whether the query should be optimized, whether a rewrite is semantically risky, and whether the current optimization loop is converging.
-These signals provide the basis for workflow adaptation and process-level self-reflection, guiding the controller to continue, retry, switch strategy, or terminate the current reasoning process.
+\revision{\textbf{Initialize the State (line~\ref{algmc:init}).}
+For a question $x$ and database $\mathcal{D}$, the Memory Engine initializes the task's working memory, whose structured state is
+\[
+ s=\langle E,Q,q,P,V,H\rangle.
+\]
+The controller reads and updates this same state. All symbols refer to the current iteration and are updated in place, as in Algorithm~\ref{alg:meta-controller}.
+Here, $E$ contains the question and database context, task-complexity observations, and grounding evidence, including schema/value alternatives, join paths, and evidence reliability.
+$Q$ stores generated candidates with their strategies, execution and local-repair outcomes, result clusters, and confidence scores; $q$ identifies the currently selected query.
+$P$ contains the current query's plan, cost observations, bottlenecks, applicable rewrite directions, and retrieved AEKB cases.
+$V$ stores validation reports linked to each source--rewrite pair, including consistency results, cost changes, and acceptance decisions.
+$H$ is the action history, recording strategies, arguments, reflection records, outputs, and feedback, including unsuccessful attempts.
+Initially, $E$ contains the input question and available database context, $q=\bot$, and the remaining fields are empty.
+Throughout the algorithm, $q$ denotes the query component of $s$, so assigning $q$ directly updates that component; AEKB $K$ remains separate from the task-local state.}
 
-%每完成一个 agent action
-%→ agent 产生 report
-%→ report 被写入 Working Memory
-%→ Controller 读取当前 Working Memory snapshot
-%→ Controller 通过 prompt-based reasoning 归纳 control signals
-%→ Controller 决定下一步 action
+\revision{\textbf{Set Up the Current Phase (lines~\ref{algmc:phase}--\ref{algmc:catalog}).}
+The controller first enters generation and then, if needed, optimization.
+The optimization decision (line~\ref{algmc:gate}) is evaluated only after generation has selected an initial SQL; the LLM uses that query, database context, and accumulated feedback to decide whether to continue.
+For each phase, $U$ contains its available action identifiers: evidence gathering and SQL construction during generation, or plan analysis, case retrieval, and direction-specific rewriting during optimization.
+An identifier specifies a capability and strategy, with separate identifiers for an initial attempt and its feedback-guided revision; the arguments are supplied from the current state.
+This finite catalog encodes the capabilities described in Sections~\ref{subsec: Generation Phase} and~\ref{subsec: Optimization Loop}, while leaving their selection and order to the controller.}
 
-%\textbf{Perception and State Construction.}
-%The controller maintains a structured task state that is initialized before generation and updated after each agent action.
-%The initial state contains three types of information.
-%First, from the input question, the controller extracts task features, including the number of conditions, aggregation requirements, comparison or superlative expressions, nested reasoning, and domain-specific terms.
-%Second, from the database environment, it records schema size, candidate table space, join-path complexity, database scale, available statistics, and index information.
-%Third, from the Memory Engine, it checks whether similar SQL templates, rewrite cases and expert rules can be retrieved.
-%
-%During execution, the controller updates the task state using reports from different agents.
-%The Evidence-guided Schema Filter Agent reports selected tables and columns, grounded values, ambiguous column/value alternatives, join-path evidence, and evidence reliability.
-%%Value-related perception is obtained from the agent's value-grounding capabilities, such as exact value verification, semantic value matching, distinct-value inspection, data sampling, and null/type analysis.
-%The Initial SQL Builder Agent reports generated candidates, repair results, execution errors, execution-result clusters, and candidate confidence.
-%The Optimization Loop reports detected bottlenecks, optimization hints, retrieved rewrite cases, rewritten SQLs, semantic validation results, and cost changes.
-%%
-%Based on these observations, the controller derives several control signals: whether the current evidence is sufficient, whether candidate SQLs are stable, whether additional generation strategies are needed, whether the query should be optimized, whether a rewrite is semantically risky, and whether the current loop is converging.
-%These signals are used for workflow adaptation and self-reflection.
+\revision{\textbf{Observe Signals and Identify Eligible Actions (lines~\ref{algmc:loop}--\ref{algmc:emptybreak}).}
+At each iteration, $\sigma=\operatorname{Signals}(s)$ summarizes four Boolean indicators $(g,e,b,f)$: unresolved grounding or missing join paths ($g$), unresolved candidate execution errors or result disagreement ($e$), supported current-plan bottlenecks ($b$), and a failed or non-improving rewrite of the current source query ($f$) (line~\ref{algmc:signals}).
+These indicators describe the current unresolved issues, rather than every past failure in the history; supporting details remain in $s$.
+The program then forms $A$ by filtering the remaining actions in $U$ against their preconditions (line~\ref{algmc:eligible}).
+SQL construction requires schema context; rewriting requires an executable selected query and an applicable direction; a revision requires feedback from its initial attempt, referring to the still-current source SQL for rewrite retries.
+The program also permits stopping generation once an executable candidate exists, and permits stopping optimization while retaining the current query.
+If $A$ is empty, the phase ends.}
 
-\textbf{Workflow and Strategy Adaptation.}
-The controller dynamically selects a workflow according to the current task state.
-%For example, simple questions over clear schemas, it chooses a lightweight workflow that activates only basic evidence construction and a single SQL generation strategy.
-%For ambiguous or complex questions, the controller activates stronger agent capabilities.
-Its adaptation operates at three levels:
+\revision{\textbf{Reflect, Select, and Adapt (lines~\ref{algmc:reflect}--\ref{algmc:execute}).}
+The program explicitly sets $\operatorname{NeedsReflection}(\sigma)=g\lor e\lor f$; when true, the LLM produces the following reflection record (line~\ref{algmc:reflect}):
+\[
+ r=\langle\text{issue},\text{supporting feedback},\text{next-step constraint}\rangle;
+\]
+otherwise, $r$ is empty; a malformed reflection record is also treated as empty.
+For example, a failed consistency check identifies which query behavior changed and supplies a semantic constraint for the next rewrite.
+Given $(s,\sigma,r,A)$, the LLM proposes an action identifier and its arguments (line~\ref{algmc:propose}); it can gather more evidence, switch SQL construction strategies, retrieve cases, retry a rewrite with feedback, choose another direction, or stop, subject to the current phase.
+Thus, $\sigma$ controls whether reflection occurs and directly informs action selection even when $r$ is empty.
+This state-dependent choice implements adaptation: the next capability and its inputs depend on the current evidence and reflection, rather than a fixed sequence of agent calls.
+The program checks the proposal against $A$ and available state objects; an invalid proposal falls back to the first eligible non-stop action in catalog order with state-bound arguments, or to an allowed stop if none remains (line~\ref{algmc:guard}).
+For a non-stop action, the program consumes its identifier and invokes the selected agent (line~\ref{algmc:execute}); SQL-building actions include the Builder's local execution-error repair, while process-level strategy switching remains with the controller.
+$\operatorname{Execute}$ returns a structured report $o$ rather than directly replacing $q$; every report has $o.\mathrm{sql}=\bot$ unless it contains a proposed rewrite, and failures are returned as error reports for the common state-update step.}
 
-\begin{itemize}[leftmargin=10pt]
-	\item \textit{Evidence-construction strategy selection.}
-	The controller decides how deeply the Evidence-guided Schema Filter Agent should construct schema and value evidence.
-	When schema relevance is clear, basic direct schema linking may be sufficient.
-	When schema relevance is uncertain, the controller can request reverse schema linking to recover latent table or column dependencies.
-	When natural language expressions are ambiguous, it can request value-grounded schema linking or additional value inspection, such as checking exact values, retrieving semantically similar values, sampling column contents, or inspecting null/type information.
-	
-	\item \textit{SQL-construction strategy selection.}
-	The controller decides whether the Initial SQL Builder Agent should use one or multiple generation strategies.
-	Simple queries may use only skeleton-based generation, while complex analytical queries may activate multiple complementary strategies jointly, including ICL-based generation and decomposition-based generation.
-	
-	 \item \textit{Optimization strategy selection.}
-	After an initial SQL is obtained, the controller decides whether to enter the Optimization Loop.
-	This decision is based on query structure, database scale, and execution feedback.
-%	, such as query plans and estimated costs.
-	After optimization is activated, the Explain Analyzer Agent further diagnoses inefficient patterns and produces rewrite suggestions.
-	If optimization is activated, the controller assigns an optimization budget, such as the maximum number of rewrite iterations and retry attempts.
-\end{itemize}
+\revision{\textbf{Validate the Output and Update the State (lines~\ref{algmc:extract}--\ref{algmc:update}).}
+A proposed rewrite is explicitly extracted as $q'=o.\mathrm{sql}$ (line~\ref{algmc:extract}) before validation against the current query.
+The Validator returns Boolean fields $v.\mathrm{success}$, $v.\mathrm{consistent}$, and $v.\mathrm{costImproved}$: successful execution, matching results on the available database state, and $C(q')<C(q)$ for $C(q)=\mathrm{Cost}(q,\mathcal{D})$ under the same measure and environment (lines~\ref{algmc:validate}--\ref{algmc:accept}).
+Each field is false unless its check succeeds; missing or incomparable costs make $v.\mathrm{costImproved}$ false, so a failed check cannot accept a rewrite.
+On acceptance, the Memory Engine stores the validated case in AEKB, $q'$ replaces $q$, and plan feedback is refreshed (lines~\ref{algmc:store}--\ref{algmc:refresh}); on rejection, $q$ remains unchanged and the failure stays in working memory (line~\ref{algmc:feedback}).
+After every action, $\operatorname{Update}$ merges the agent report into the appropriate fields of $s$ and appends $(a,\sigma,r,o,q)$ to $H$, completing the cycle back to observation (line~\ref{algmc:update}).
+This merge preserves the selected-query field: $q$ is assigned only by candidate selection or an accepted rewrite, so a failed action cannot overwrite it.
+Evidence-gathering outputs update $E$, generation outputs update $Q$, plan analysis and retrieval update $P$, and rewrite checks update $V$; the reflection record $r$ is retained in $H$.
+When $q$ changes, plan information is refreshed and retrieved-case applicability is rechecked for the new query; earlier observations remain accessible through $H$. If plan analysis fails, the old plan is invalidated and the error is recorded; only newly supported directions are eligible for rewriting.
+%Neither selection nor validation uses benchmark reference SQL, and consistency on the available database state does not establish equivalence on every possible database instance.
+}
 
-This adaptive design avoids applying the same expensive workflow to every question, while retaining stronger reasoning paths for ambiguous, complex, or performance-sensitive cases.
-
-\textbf{Process-level Self-Reflection.}
-The controller performs self-reflection when intermediate feedback suggests that the current reasoning path is unreliable, uncertain, or no longer improving.
-Rather than waiting until the final SQL is produced, it monitors evidence quality, candidate stability, execution behavior, semantic validation results, and optimization progress throughout the workflow.
-When potential problems are detected, the controller can revise the current plan by requesting additional evidence construction, activating alternative generation strategies, invoking repair, retrieving more relevant optimization cases, or switching to another rewrite direction.
-During optimization, self-reflection is mainly driven by the Validator Agent's feedback.
-If a rewritten SQL violates semantic consistency, the controller rejects the rewrite and asks the SQL Rewriter Agent to revise it.
-If the rewritten SQL preserves semantics but fails to reduce cost, the controller retries with rewrite history, retrieved cases, and optimization suggestions, or switches to another rewrite direction.
-The controller also terminates the optimization loop when the retry budget is exhausted or the cost reduction remains below a predefined threshold, avoiding unproductive optimization attempts.
-
-%\textbf{Experience-driven Learning.} 
-%The controller interacts with the Memory Engine in two ways. 
-%First, it maintains task-level working memory during the current query. 
-%This memory records selected strategies, schema/value evidence, generated candidates, execution errors, repair attempts, optimization hints, retrieved cases, rewritten SQLs, validation results, and cost changes. 
-%The controller uses this working memory to avoid repeating failed actions and to provide context for subsequent reflection decisions. Second, the controller updates the reusable optimization memory after successful rewrites. 
-%A rewrite is promoted to the Auto-Evaluation Knowledge Base only when it satisfies two conditions: the rewritten SQL is semantically consistent with the original SQL, and it improves the execution cost. 
-%The controller then summarizes the successful case into a structured record, including the source SQL template, rewritten SQL template, applicability constraints, and optimization rationale. 
-%Failed rewrites are not stored as reusable knowledge; they remain only in the task-level working memory as negative feedback. Future tasks can retrieve these validated cases to guide bottleneck analysis, rewrite selection, and optimization termination decisions.
-
+\revision{\textbf{Complete the Phase and Return the Query (lines~\ref{algmc:select}--\ref{algmc:return}).}
+When generation ends, the SQL Builder selects an executable initial query, or returns $\bot$ if none exists.
+The controller optionally optimizes this query and returns the latest accepted result.
+Each phase ends on a permitted stop or when no eligible action remains; executed action identifiers are removed from the finite set $U$.
+The LLM supplies reflection and adaptive selection, while workflow and validation rules are manually specified; AEKB updates store validated cases without changing model parameters.}
 
 \subsection{Memory Engine and Tool Infrastructure}
 \label{subsec: Memory Engine and Tool Infrastructure}
 \textbf{Memory Engine.}
-The Memory Engine supports both task-level reasoning and cross-task experience reuse.
-It consists of working memory and the Auto-Evaluation Knowledge Base (AEKB).
-%The working memory stores the intermediate trace of the current task.
-%It records the database environment, question complexity, selected strategies, schema and value evidence, generated SQL candidates, execution errors, repair attempts, optimization hints, retrieved cases, rewritten SQLs, validation results, and cost changes.  \lin{Recheck}
-The working memory stores the structured task state and intermediate trace of the current task.
-It records task context, including the database environment, question complexity, and available statistics or indexes.
-It also stores grounding evidence, including selected tables and columns, grounded values, ambiguous schema or value alternatives, join-path evidence, and evidence reliability.
-During SQL generation, it records selected generation strategies, generated SQL candidates, execution errors, repair attempts, execution-result clusters, candidate confidence, and the selected initial SQL.
-During optimization, it records query plans, normalized bottleneck signals, optimization hints, rewrite directions, applicability conditions, retrieved cases, rewritten SQLs, semantic validation results, estimated costs, execution latency, and cost changes.
-The Meta-Cognitive Controller uses this memory to avoid repeated failed actions and provide context for subsequent reflection, retry, and termination decisions.
-Failed rewrites are kept only in working memory as task-level negative feedback, rather than being promoted to reusable knowledge.
-%
-The AEKB stores reusable optimization knowledge.
-It contains expert rules and historical rewrite cases validated by the Validator Agent.
-A rewrite is added to the AEKB only when it satisfies two conditions: the rewritten SQL is semantically consistent with the original SQL, and it reduces execution cost.
+\revision{The Memory Engine manages two stores: task-local working memory and the reusable AEKB $K$.
+Working memory holds exactly the controller state $s=\langle E,Q,q,P,V,H\rangle$ defined in Section~\ref{subsec: Meta-Cognitive Controller}.
+Its fields provide the controller's current view of task context and grounding ($E$), generated candidates ($Q$), the selected query ($q$), plan and retrieval context ($P$), validation outcomes ($V$), and the action trace ($H$).
+The controller supplies decisions and agent reports; the Memory Engine records them in these fields through the update step of Algorithm~\ref{alg:meta-controller}.
+Thus, working state and working memory refer to the same task-local information, with $H$ preserving the history behind the current state.
+%Working memory is initialized afresh for each input question and retained throughout that question's generation and optimization phases.
+}
+
+\revision{The AEKB contains static expert rules and reusable rewrite cases, rather than the full task state or action trace.
+Retrieval places relevant cases in $P$ for the current query without changing the AEKB.
+A new case is added to $K$ only when a rewrite executes successfully, preserves the source query's observed results, and reduces cost under the same measure and environment.
+Failed rewrites and their diagnoses remain in $V$ and $H$ and are not promoted to reusable knowledge.
+The accepted case is summarized into the template record below; this promotion does not copy the question's entire working memory into $K$.
+%Unlike task-local working memory, $K$ can carry accepted cases across questions within a run; its reset between repeated evaluation runs follows Section~\ref{sec:evaluation}.
+}
+% Previous memory description retained for comparison.
+% The Memory Engine supports both task-level reasoning and cross-task experience reuse.
+% It consists of working memory and the AEKB.
+% %The working memory stores the intermediate trace of the current task.
+% %It records the database environment, question complexity, selected strategies, schema and value evidence, generated SQL candidates, execution errors, repair attempts, optimization hints, retrieved cases, rewritten SQLs, validation results, and cost changes.  \lin{Recheck}
+% The working memory stores the structured task state and intermediate trace of the current task.
+% It records task context, including the database environment, question complexity, and available statistics or indexes.
+% It also stores grounding evidence, including selected tables and columns, grounded values, ambiguous schema or value alternatives, join-path evidence, and evidence reliability.
+% During SQL generation, it records selected generation strategies, generated SQL candidates, execution errors, repair attempts, execution-result clusters, candidate confidence, and the selected initial SQL.
+% During optimization, it records query plans, normalized bottleneck signals, optimization hints, rewrite directions, applicability conditions, retrieved cases, rewritten SQLs, semantic validation results, estimated costs, execution latency, and cost changes.
+% The Meta-Cognitive Controller uses this memory to avoid repeated failed actions and provide context for subsequent reflection, retry, and termination decisions.
+% Failed rewrites are kept only in working memory as task-level negative feedback, rather than being promoted to reusable knowledge.
+% %
+% The AEKB stores reusable optimization knowledge.
+% It contains expert rules and historical rewrite cases validated by the Validator Agent.
+% A rewrite is added to the AEKB only when it satisfies two conditions: the rewritten SQL is semantically consistent with the original SQL, and it reduces execution cost.
+% 
 Each accepted case is summarized as a rewrite template record:
 \[
 \langle T_{\mathit{src}}, T_{\mathit{dst}}, C, R \rangle .
@@ -362,7 +421,7 @@ It consists of three groups of tools:
 	These tools allow the SQL Rewriter Agent to reuse prior optimization experience and update the knowledge base after successful rewrites.
 \end{itemize}
 
-Together, these tools allow \toolname\ to ground reasoning in concrete database evidence, analyze execution behavior, retrieve relevant optimization experience, and update memory after successful rewrites.
+Together, these tools allow \toolname\ to ground reasoning in database evidence, analyze execution behavior, retrieve relevant optimization experience, and update memory after successful rewrites.
 
 
 %\section{Case Study}
